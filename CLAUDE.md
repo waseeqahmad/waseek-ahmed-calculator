@@ -4,6 +4,7 @@ A bill-split tracker for the person who paid. It's a take-home assignment (the b
 
 ## Read first
 - `docs/user-stories.md` is **the spec**. Every behaviour and error message is in its acceptance criteria. Build to the criteria exactly, using the exact message strings.
+- `docs/ui-plan.md`: the locked screen layout and states. Build the UI to it.
 - `docs/app-roles.md`, `docs/jobs-to-be-done.md`: who the app is for and why.
 - `README.md`: overview, the build-order status, and the run commands.
 
@@ -12,6 +13,7 @@ Vite + React + TypeScript, plain CSS, Vitest. No state library, no router, no UI
 
 ## Commands
 - `npm install`, `npm run dev`, `npm test`, `npm run build`
+- Node 20.19+ (`.nvmrc`). Vitest is pinned to 4 because Vitest 5 needs Node 22.
 
 ## Rules
 - **Money is integer rupees, never floats.** Parse to an integer at the input. State and localStorage hold integers only. Round with `q = Math.trunc(total / n)`, `r = total - q*n`, `share = r > 0 ? q + 1 : q`.

@@ -2,6 +2,8 @@
 
 **Status rule:** a story is marked **Implemented** only after every one of its acceptance criteria has been checked by hand in the running app. Until then it stays **Not implemented**, and "(planned v1)" means it's in scope for the first version.
 
+**Screens:** the app has two screens. **Setup** is where you enter the total, the people and the payment details and send the message. **Track** is where you tick people off. See `docs/ui-plan.md`.
+
 **Shared setup used in the examples** (unless an example says otherwise): the payer's name is `Waseek`, the friends are `Ali` and `Sara`, and payment details are empty. Error messages are quoted exactly; the app must use these strings.
 
 | ID | Job | Story | Status |
@@ -84,12 +86,13 @@ As a Bill Payer, I want to add and remove people by name, so that the split matc
 
 As a Bill Payer, I want a ready-made message with the share and my payment details that I can copy or open in WhatsApp, so that I can ask the group in one go.
 
-- Given a valid split, then the message is always shown on screen as text I can select.
-- Given a valid split, when I press **Copy message**, then the clipboard holds exactly the text shown, and the button reads `Copied ✓` for about 2 seconds.
-- Given the browser blocks clipboard access, when I press **Copy message**, then I see `Couldn't copy, select the text below` and the message text is still visible and selectable.
-- Given a valid split, when I press **Open in WhatsApp**, then a new tab opens at `https://wa.me/?text=` followed by the URL-encoded message.
+- Given a valid split, then on Setup the message is always shown as text I can select.
+- Given a valid split on Setup, when I press **Copy message**, then the clipboard holds exactly the text shown, the Track screen opens, and I see `Copied ✓ Now paste it in your WhatsApp group.`
+- Given I'm on Track, when I open **Message for the group** and press **Copy message**, then the clipboard holds exactly the text shown, I stay on Track, and the button reads `Copied ✓` for about 2 seconds.
+- Given the browser blocks clipboard access, when I press **Copy message**, then I see `Couldn't copy, select the text below`, the message text is visible and selectable, and I stay on the same screen.
+- Given a valid split on Setup, when I press **Open in WhatsApp**, then a new tab opens at `https://wa.me/?text=` followed by the URL-encoded message, and the app moves to the Track screen.
 - Given there's no valid split (my name, the total or friends are missing or invalid), then the message area shows `Add your name, a total and at least one friend to create the message` and both buttons are disabled.
-- Given the message is showing, when I change the total, the people or the payment details, then the message updates straight away.
+- Given the message is showing on Setup, when I change the total, the people or the payment details, then the message updates straight away.
 
 ## S-4: One clear amount and where to send it
 *Serves J-3 · Not implemented (planned v1)*
@@ -115,12 +118,12 @@ As a Bill Payer, I want to tick people off as they pay and see how many have pai
 
 Example bill: a total of `1000`, with Waseek, Ali and Sara.
 
-- Given no friend is ticked, then my row shows `paid (you)` and the summary reads `1 of 3 paid · 668 PKR still to collect`.
+- Given I'm on Track and no friend is ticked, then my row shows `paid (you)` and the summary reads `1 of 3 paid · 668 PKR still to collect`.
 - When I tick Ali, then the summary reads `2 of 3 paid · 334 PKR still to collect`.
 - When I also tick Sara, then the summary reads `Everyone has paid ✓`.
 - Given Ali is ticked, when I untick him, then the summary goes back to `1 of 3 paid · 668 PKR still to collect` (if Sara is unticked).
 - My own row can't be unticked.
-- Given there's no valid split, then the friends' ticks are disabled and no summary is shown.
+- Given there's no valid split, then the Track screen can't be reached: both send buttons on Setup are disabled, and a reopened bill opens on Setup.
 
 ## S-6: Bill is still there later
 *Serves J-2 · Not implemented (planned v1)*
@@ -129,6 +132,7 @@ As a Bill Payer, I want my bill and ticks to still be there when I come back lat
 
 - Given a bill with Ali ticked, when I refresh the page or close and reopen the browser, then my name, the total, payment details, every person and Ali's tick are restored.
 - Given the total field holds something invalid, such as `abc`, when I refresh, then the total field is empty. Only a valid whole-rupee total is saved.
+- Given I was on Track, when I refresh, then Track opens. Given I was on Setup, then Setup opens.
 - When I open the app in a different browser or on another device, then it starts with an empty bill.
 - Given the saved data has been damaged (for example, edited by hand in developer tools), when I open the app, then it starts with an empty bill and does not crash.
 - Given the browser blocks storage (for example, some private-browsing modes), when I use the app, then everything still works and I see `This bill can't be saved in this browser`.
@@ -140,9 +144,11 @@ As a Bill Payer, I want to be warned that changing the total or the people will 
 
 A tick means "paid the current share". If the shares change, the ticks can't be trusted any more.
 
-- Given no friend is ticked, then I can change the total and add or remove people freely.
-- Given at least one friend is ticked, then the total field and adding or removing people are locked, and a **Change total or people** button is shown.
-- Given Ali and Sara are ticked, when I press **Change total or people**, then I see `This will clear 2 payment ticks. Continue?` with **Yes** and **Cancel**.
+- Given I'm on Track, when I press **Edit bill**, then Setup opens with no warning and the ticks stay.
+- Given the bill has been sent and the split is valid, then Setup shows **Back to payments**, which returns to Track.
+- Given no friend is ticked, then on Setup I can change the total and add or remove people freely.
+- Given at least one friend is ticked, then on Setup the total field and adding or removing people are locked, and I see `Locked because someone is ticked as paid.` with a **Change total or people** button.
+- Given Ali and Sara are ticked, when I press **Change total or people**, then I see `This will clear 2 payment ticks. Continue?` with **Yes** and **Cancel**. With only one tick it reads `This will clear 1 payment tick. Continue?`
 - When I press **Yes**, then all friends' ticks are cleared and the total and people become editable again.
 - When I press **Cancel**, then nothing changes: the ticks stay and the fields stay locked.
 - Given a friend is ticked, when I change my name or the payment details, then no warning appears and the ticks stay.
@@ -153,7 +159,7 @@ A tick means "paid the current share". If the shares change, the ticks can't be 
 As a Bill Payer, I want to start a new bill after confirming, so that the old one doesn't get mixed up with the next.
 
 - When I press **New bill**, then I see `Start a new bill? This clears everything.` with **Yes** and **Cancel**, on the page itself, not as a browser pop-up.
-- When I press **Yes**, then my name, the total, payment details, every person and every tick are cleared.
+- When I press **Yes**, then my name, the total, payment details, every person and every tick are cleared, and the empty Setup screen opens.
 - Given I pressed **Yes**, when I refresh, then the bill is still empty.
 - When I press **Cancel**, then nothing changes.
 

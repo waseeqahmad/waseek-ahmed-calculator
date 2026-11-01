@@ -1,6 +1,6 @@
 # Bill Split Tracker
 
-> **Status: planned, not built yet.** See the build order below.
+> **Status: working UI for S-1 to S-8 built, waiting for the hand-check.** See the build order below.
 
 ## What it is and who it's for
 
@@ -15,6 +15,7 @@ This app is for **the person who paid**. They enter the total and who was there.
 - [App roles](docs/app-roles.md): Bill Payer and Group Member
 - [Jobs to be done](docs/jobs-to-be-done.md): J-1 to J-3
 - [User stories with acceptance criteria](docs/user-stories.md): S-1 to S-8 planned for v1, S-9 to S-13 for later
+- [UI and UX plan](docs/ui-plan.md): the Setup and Track screens, how you move between them, and every state (locked)
 
 ## Key decisions
 
@@ -24,26 +25,28 @@ This app is for **the person who paid**. They enter the total and who was there.
 - **Paid is a simple tick.** Once anyone is ticked, changing the total or the people needs a confirmation and clears the ticks.
 - **One bill, saved in the browser** (localStorage), on the same device only. There's no backend and no accounts.
 - **The message is copied or opened in WhatsApp** (`wa.me`). It shows one amount and lists no names.
+- **Two screens: Setup and Track.** Setup is for the table (total, people, message). Sending the message moves you to Track, which shows only who has paid. The app reopens where you left off.
 
 ## Running the app
 
-*(Planned. Confirm once the project is set up.)*
-
-**Prerequisites:** Node.js 20+
+**Prerequisites:** Node.js 20.19+ (`.nvmrc` says 20; `nvm use` picks it up)
 
 ```bash
 npm install
 npm run dev      # open the printed localhost URL
-npm test         # unit tests
+npm test         # unit tests (Vitest)
+npm run build    # type-check and build to dist/
 ```
+
+The code is four files in `src/`: `split.ts` (pure maths, validation, message text and the saved-data check), `split.test.ts`, `App.tsx` (both screens) and `index.css`.
 
 ## Build order
 
 | # | Stage | Status |
 |---|---|---|
-| 1 | Set up Vite + React + TS + Vitest, `.nvmrc`, `.gitignore` | Not started |
-| 2 | `src/split.ts` + tests (rounding, too-small guard, validation, shares-add-up property test) | Not started |
-| 3 | Plain working UI for S-1 to S-8 | Not started |
+| 1 | Set up Vite + React + TS + Vitest, `.nvmrc`, `.gitignore` | Done |
+| 2 | `src/split.ts` + tests (rounding, too-small guard, validation, shares-add-up property test) | Done |
+| 3 | Plain working UI for S-1 to S-8 | Done (story statuses wait for stage 5) |
 | 4 | Visual design (user-led) | Not started |
 | 5 | Hand-check every acceptance criterion, then update the story statuses | Not started |
 | 6 | Final README, export transcripts, public GitHub repo, optional Vercel deploy | Not started |
@@ -52,6 +55,7 @@ npm test         # unit tests
 
 - Claude Code, model Claude Opus 5.5 (`claude-opus-5-5`)
 - Session 01: planning interview and docs (`transcripts/session-01.md`)
+- Session 02: build stages 1 to 3 (project setup, `split.ts` with tests, working UI)
 
 ## Code changed by hand
 
@@ -65,3 +69,12 @@ npm test         # unit tests
 - The message is plain text, so Copy works with any chat app, not only WhatsApp.
 - The 10,000,000 PKR cap and the 50-person limit are well beyond any real group bill.
 - Friends can't be renamed. To fix a typo, remove the person and add them again (only the payer's own name can be edited).
+- Commas are accepted anywhere between digits in the total, so both `1,500` and the Pakistani-style `1,00,000` work. Malformed input such as `1,,5` is rejected as `Enter a number in whole rupees`.
+- A total ending in a decimal point (`1500.` or `.5`) gets `Enter whole rupees (no paisa)`.
+- The 30-character name limit counts characters as people see them (Unicode code points), so `🍕` counts as one.
+- Adding an empty name always shows `Enter a name`, even when the bill already has 50 people.
+- With exactly one tick, the warning reads `This will clear 1 payment tick. Continue?` (singular).
+- After **Yes** on the "Change total or people" warning, the button that opened it is gone, so focus goes to **Bill total**.
+- A reloaded total shows as plain digits (`1,500` comes back as `1500`), because only the integer is saved.
+- On Setup, "Bill total", "People" and "Message for the group" are `<h2>` headings, so "focus moves to the first heading" lands on Bill total. On Track the heading is the bill line.
+- Saved data with a valid shape that breaks a rule (duplicate friends, a fractional or out-of-range total, payment details over 200 characters) counts as damaged and opens an empty bill.
