@@ -1,0 +1,668 @@
+ ▐▛███▛█   Claude Code v2.1.316
+▝▜██████▀  Opus 5.5 · Claude Pro
+ ▝▝   ▝▝   ~/projects/waseek-ahmed-calculator
+
+
+❯ /clear                                                                        
+
+❯   You're building the Bill Split Tracker in this repo. The product planning   
+  is done and locked. Your job is to build it to the spec exactly.              
+                                                                                
+    ## Read first, in this order, before writing any code                       
+    1. `CLAUDE.md`: the project rules. These override your defaults.            
+    2. `README.md`: overview, key decisions and the build-order table.          
+    3. `docs/user-stories.md`: **the spec.** Build to every acceptance          
+  criterion in S-1 to S-8. Use every quoted message string **exactly**,         
+  character for character, including `—`, `✓`, `·` and `🙏`. S-9 to S-13 are    
+  out of scope.                                                                 
+    4. `docs/ui-plan.md`: **the locked UI.** There are two screens, Setup and   
+  Track, plus how you move between them, every state and the inline             
+  confirmations. Follow it. If it ever disagrees with the user stories, the     
+  stories win. Tell me about the conflict.                                      
+    5. `docs/app-roles.md` and `docs/jobs-to-be-done.md`: background on who the 
+  app is for.                                                                   
+                                                                                
+    `BRIEF.local.md` is git-ignored and must never be committed. Don't move or  
+  commit the session transcript `.txt` file in the root either.                 
+                                                                                
+    ## Scope: build-order stages 1 to 3                                         
+    1. **Setup:** Vite + React + TypeScript + Vitest, `.nvmrc` (Node 20), and   
+  `.gitignore` (keep `BRIEF.local.md`, add `node_modules`, `dist`).             
+    2. **`src/split.ts` + `src/split.test.ts`:** pure functions with no React   
+  imports.                                                                      
+       - Parse the total: trim, allow commas as thousands separators, reject    
+  decimals, `1e5`, `12abc`, values of 0 or less, and anything over 10,000,000.  
+  Each case returns the exact S-1 message.                                      
+       - Validate names: trim, 1 to 30 characters, case-insensitive duplicate   
+  check that includes the payer, at most 50 people. Each case returns the exact 
+  S-2 message.                                                                  
+       - Split: `q = Math.trunc(total / n)`, `r = total - q*n`, `friendShare =  
+  r > 0 ? q + 1 : q`, payer gets `total - friendShare*(n-1)`. If the payer      
+  would go below 0, return the "too small" error.                               
+       - Build the message (exact S-4 text), the summary line (S-5) and the     
+  `wa.me` URL.                                                                  
+       - Tests: cover every S-1, S-2, S-4 and S-5 example, plus a **property    
+  test** that the shares always add up exactly to the total. Use a seeded       
+  random loop. Don't add fast-check without asking me.                          
+    3. **Working UI for S-1 to S-8**, following `docs/ui-plan.md`:              
+       - **No router.** `view: "setup" | "track"` and `sent: boolean` are       
+  state, saved with the bill.                                                   
+       - **Money is integers everywhere** (state and localStorage). Only a      
+  valid total is saved.                                                         
+       - **localStorage is a trust boundary.** Wrap every read and write in     
+  try/catch, and check the shape of what you parse. Missing or damaged data     
+  means an empty bill, never a crash. If storage is blocked, the app still      
+  works and shows `This bill can't be saved in this browser`.                   
+       - **No `alert`, `confirm` or `prompt`.** Confirmations are inline, as in 
+  the plan: focus goes to Cancel, Esc cancels, and focus is restored            
+  afterwards.                                                                   
+       - **Accessibility:** visible labels, real `<button>`, `<input            
+  type="checkbox">` and `<details>` elements, `aria-describedby` and            
+  `aria-invalid` on errors, `aria-live` on the summary and copy notices, and    
+  tap targets of at least 44px.                                                 
+       - **Plain CSS**, following the plan's "Look" section: `system-ui` font,  
+  neutral greys plus one green accent, an 8px radius, light and dark mode via   
+  `prefers-color-scheme`, and a single column at most 32rem wide. Don't invent  
+  any other visual style.                                                       
+                                                                                
+    ## Constraints                                                              
+    - **No new dependencies** beyond the Vite React-TS template and Vitest      
+  without asking me first. That means no UI kit, state library, router or icon  
+  library.                                                                      
+    - Keep it small: few files, no abstractions "for later".                    
+    - Use `type="text" inputmode="numeric"` for the total, never                
+  `type="number"`.                                                              
+                                                                                
+    ## Process                                                                  
+    - After each stage, update the build-order table in `README.md`. Fill in    
+  "Running the app" once the commands actually work.                            
+    - **Don't change any story to Implemented.** I check each acceptance        
+  criterion by hand first.                                                      
+    - If the built behaviour ends up differing from the docs, stop and ask me.  
+  Don't change the code or the docs on your own.                                
+    - Don't commit unless I ask.                                                
+    - If something is genuinely ambiguous, take the reading closest to the      
+  acceptance criteria, write it down, and tell me at the end.                   
+                                                                                
+    ## Before you report back                                                   
+    - `npm test` passes and `npm run build` succeeds. Paste the output          
+  summaries.                                                                    
+    - Run the app and walk through these flows yourself:                        
+      1. Empty first run.                                                       
+      2. Enter `1000` with Waseek, Ali and Sara: shares are 334 / 334 / 332 and 
+  the message matches S-4 exactly.                                              
+      3. Copy, which takes you to Track.                                        
+      4. Tick Ali, then refresh: you're still on Track and Ali is still ticked. 
+      5. Edit bill shows the locked Setup. Change total or people, then Yes     
+  clears the ticks.                                                             
+      6. New bill, then Yes, then refresh: the bill is still empty.             
+      7. Damaged localStorage: the app starts with an empty bill and doesn't    
+  crash.                                                                        
+    - Report:                                                                   
+      - what you built                                                          
+      - each flow and whether it passed                                         
+      - any criterion you couldn't verify                                       
+      - any assumptions you made                                                
+
+⏺ Bash(ls -la && cat README.md && cat .gitignore 2>/dev/null; node -v; npm -v)
+  ⎿  total 336
+     drwxr-xr-x@ 11 achillies  staff    352 Nov  1 16:56 .
+     drwxr-xr-x  26 achillies  staff    832 Nov  1 16:25 ..
+     … +83 lines (ctrl+o to expand)
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Bash(cat docs/app-roles.md docs/jobs-to-be-done.md | head -120; git diff
+      --stat; ls .claude)
+  ⎿  # App Roles
+
+     ## Bill Payer
+     … +37 lines (ctrl+o to expand)
+
+⏺ Bash(cat > package.json <<'EOF'
+      {…)
+  ⎿  npm notice
+     npm error Log files were not written due to an error writing to the di
+     rectory: /Users/achillies/.npm/_logs
+     … +7 lines (ctrl+o to expand)
+
+⏺ Bash(export npm_config_cache="$TMPDIR/npm-cache" && npm install react
+      react-dom 2>&1 | tail -5 && npm install -D vite @vitejs/plugin-react
+      typescript vitest @types/r…)
+  ⎿  npm notice
+     npm notice New minor version of npm available! 11.11.0 -> 11.21.1
+     npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.21.1
+     … +31 lines (ctrl+o to expand)
+
+⏺ Bash(for p in vite vitest @vitejs/plugin-react typescript; do echo "$p: $(node
+      -p "JSON.stringify(require('./node_modules/$p/package.json').engines)")";
+      done)
+  ⎿  vite: {"node":"^20.19.0 || >=22.12.0"}
+     vitest: {"node":"^22.12.0 || ^24.0.0 || >=26.0.0"}
+     @vitejs/plugin-react: {"node":"^20.19.0 || >=22.12.0"}
+     typescript: {"node":">=16.20.0"}
+
+⏺ Dependencies are installed. One snag: Vitest 5 requires Node 22+, but you
+  asked for Node 20 in .nvmrc. I'm checking whether Vitest 4 supports Node 20
+  and works with this Vite.
+
+⏺ Bash(export npm_config_cache="$TMPDIR/npm-cache" && npm view vitest@4 engines
+      peerDependencies --json 2>/dev/null | tail -40)
+  ⎿    },
+       {
+         "engines": {
+     … +37 lines (ctrl+o to expand)
+
+⏺ Vitest 4 supports Node 20 and Vite 8, so I'm pinning it and writing the config
+  files.
+
+⏺ Bash(export npm_config_cache="$TMPDIR/npm-cache" && npm install -D vitest@^4
+      2>&1 | tail -2 && echo 20 > .nvmrc && printf
+      '*.local.md\nnode_modules/\ndist/\n' > .git…)
+  ⎿  found 0 vulnerabilities
+         "test": "vitest run"
+         "vitest": "^4.1.12"
+
+⏺ Writing src/split.ts (pure maths, validation and message text) and its tests
+  now.
+
+⏺ Write(src/split.ts)
+  ⎿  Wrote 111 lines to src/split.ts
+       1 // Pure split maths, validation and message text. No React here.
+       2 
+       3 export const MAX_TOTAL = 10_000_000
+       4 export const MAX_PEOPLE = 50
+       5 export const MAX_NAME = 30
+       6 export const MAX_DETAILS = 200
+       7 
+       8 export type Friend = { name: string; paid: boolean }
+       9 export type Bill = {
+      10   payer: string
+     … +101 lines (ctrl+o to expand)
+
+⏺ Update(src/split.ts)
+  ⎿  Added 1 line, removed 1 line
+      89      const names: string[] = []
+      90      const ok =
+      91        b !== null && typeof b === 'object' &&
+      92 -      typeof b.payer === 'string' && [...b.payer].length <= 200
+         - &&                                                            
+      92 +      typeof b.payer === 'string' &&                           
+      93        (b.total === null || (Number.isInteger(b.total) && b.tota
+          l > 0 && b.total <= MAX_TOTAL)) &&
+      94        typeof b.details === 'string' && b.details.length <= MAX_
+          DETAILS &&
+      95        (b.view === 'setup' || b.view === 'track') &&
+
+⏺ Write(src/split.test.ts)
+  ⎿  Wrote 172 lines to src/split.test.ts
+      1 import { describe, expect, it } from 'vitest'
+      2 import { addFriendError, buildMessage, emptyBill, fmt, parseBill,
+         parseTotal, payerError, split, summary, waUrl } from './split'
+      3 
+      4 // Shares as the UI shows them: payer first, then each friend.
+      5 function shares(total: number, n: number) {
+      6   const s = split(total, n)
+      7   if ('error' in s) return s.error
+      8   return [s.payerShare, ...Array(n - 1).fill(s.friendShare)]
+      9 }
+     … +163 lines (ctrl+o to expand)
+
+⏺ Update(src/split.test.ts)
+  ⎿  Added 1 line, removed 1 line
+      73        const n = 2 + Math.floor(rand() * 49)
+      74        const s = split(total, n)
+      75        if ('error' in s) {
+      76 -        expect(total).toBeLessThan(n * 2) // only tiny totals c
+         -an fail                                                        
+      76 +        expect(Math.ceil(total / n) * (n - 1)).toBeGreaterThan(
+         +total) // friends' round-up really overshoots                  
+      77          continue
+      78        }
+      79        expect(Number.isInteger(s.friendShare) && Number.isIntege
+          r(s.payerShare)).toBe(true)
+
+⏺ Bash(npx vitest run 2>&1 | tail -15)
+  ⎿  (No output)
+
+⏺ Bash(npx vitest run > $TMPDIR/vt.log 2>&1; echo "exit $?"; tail -30
+      $TMPDIR/vt.log)
+  ⎿  exit 255
+
+⏺ Bash(ls node_modules/.bin | grep -i vitest; node
+      node_modules/vitest/vitest.mjs run 2>&1 | tail -30; echo "exit $?")
+  ⎿  vitest
+
+      RUN  v4.1.12 /Users/achillies/projects/waseek-ahmed-calculator
+     … +9 lines (ctrl+o to expand)
+
+⏺ 68 tests pass (the earlier npx failure was the sandbox blocking ~/.npm, not
+  the tests). Now the UI: main.tsx, App.tsx, index.css.
+
+⏺ Write(src/main.tsx)
+  ⎿  Wrote 10 lines to src/main.tsx
+       1 import { StrictMode } from 'react'
+       2 import { createRoot } from 'react-dom/client'
+       3 import App from './App'
+       4 import './index.css'
+       5 
+       6 createRoot(document.getElementById('root')!).render(
+       7   <StrictMode>
+       8     <App />
+       9   </StrictMode>,
+      10 )
+⏺ Write(src/App.tsx)
+  ⎿  Wrote 406 lines to src/App.tsx
+       1 import { useEffect, useRef, useState, type ReactNode } from 'rea
+         ct'
+       2 import { flushSync } from 'react-dom'
+       3 import {
+       4   addFriendError, billLine, buildMessage, emptyBill, fmt, parseB
+         ill, parseTotal, payerError, split, summary, waUrl,
+       5   MAX_DETAILS, type Bill,
+       6 } from './split'
+       7 
+       8 const KEY = 'bill-split-tracker'
+     … +398 lines (ctrl+o to expand)
+
+⏺ Bash(cd /Users/achillies/projects/waseek-ahmed-calculator/src && sed -i '' 's|
+      // eslint-disable-line react-hooks/exhaustive-deps -- on mount only| //
+      on mount only|…)
+  ⎿  1:import { useEffect, useRef, useState, type FormEvent, type ReactNode
+      } from 'react'
+     92:          onTrack={(sentBy) => go("track", { sent: true }, sentBy =
+     … +4 lines (ctrl+o to expand)
+
+⏺ Bash(cd /Users/achillies/projects/waseek-ahmed-calculator && sed -i ''
+      "s|go(\"track\", { sent: true }, sentBy === \"copy\")|go('track', { sent:
+      true }, sentBy === '…)
+  ⎿  92:          onTrack={(sentBy) => go('track', { sent: true }, sentBy =
+     == 'copy')}
+
+⏺ Now the CSS, following the plan's "Look" section.
+
+⏺ Write(src/index.css)
+  ⎿  Wrote 134 lines to src/index.css
+       1 :root {
+       2   --bg: #ffffff;
+       3   --surface: #f2f2f2;
+       4   --text: #1a1a1a;
+       5   --muted: #5c5c5c;
+       6   --border: #c4c4c4;
+       7   --accent: #157a3c;
+       8   --on-accent: #ffffff;
+       9   --error: #b3261e;
+      10   --radius: 8px;
+     … +124 lines (ctrl+o to expand)
+
+⏺ Bash(sed -i '' "/\.people li \.hint::before/d; s|^summary { min-height: 44px;
+      display: flex; align-items: center; cursor: pointer; font-weight: 600;
+      }|summary { min-…)
+  ⎿  132:summary { min-height: 44px; padding: 10px 0; cursor: pointer; font
+     -weight: 600; }
+     … +2 lines (ctrl+o to expand)
+
+⏺ Bash(export npm_config_cache="$TMPDIR/npm-cache"; npm run build >
+      $TMPDIR/b.log 2>&1; echo "exit $?"; cat $TMPDIR/b.log | tail -20; ls dist
+      2>&1)
+  ⎿  Error: Exit code 1
+     exit 255
+
+     > bill-split-tracker@0.0.0 build
+     > tsc -b && vite build
+
+     ls: dist: No such file or directory
+
+⏺ Bash(node_modules/.bin/tsc -b; echo "tsc exit $?"; node_modules/.bin/tsc
+      --version; ls -la node_modules/.bin/tsc)
+  ⎿  tsc exit 0
+     Version 7.0.2
+     lrwxr-xr-x@ 1 achillies  staff  21 Nov  1 16:57 node_modules/.bin/tsc
+     -> ../typescript/bin/tsc
+
+⏺ Bash(export npm_config_cache="$TMPDIR/npm-cache"
+      npm_config_logs_dir="$TMPDIR/npm-logs"; npm run build 2>&1 | tail -20;
+      echo "exit ${PIPESTATUS[0]}"; ls $TMPDIR/npm-…)
+  ⎿  > bill-split-tracker@0.0.0 build
+     > tsc -b && vite build
+     … +23 lines (ctrl+o to expand)
+
+⏺ npm run fails in the sandbox with spawn EPERM, though tsc runs directly, so
+  the sandbox is the cause. I'll rerun the real npm commands outside it.
+
+⏺ Bash(npm run build 2>&1 | tail -12; npm test 2>&1 | tail -8)
+  ⎿  > tsc -b && vite build
+
+     vite v8.3.5 building client environment for production...
+     … +17 lines (ctrl+o to expand)
+
+⏺ The build and tests pass. Next I'm starting the dev server and walking the
+  flows in Chrome.
+
+⏺ Bash(git status --short && node_modules/.bin/vite --port 5199 --strictPort)
+  ⎿  Running in the background (↓ to manage)
+
+  Read 1 file, called claude-in-chrome (ctrl+o to expand)
+
+⏺ The Chrome extension isn't connected, so I'll check whether a local headless
+  Chrome can be driven over DevTools instead. I'm also adding *.tsbuildinfo to
+  .gitignore.
+
+  Listed 1 directory (ctrl+o to expand)
+
+⏺ Local Chrome is there. I'm writing a small DevTools-protocol script in the
+  scratchpad that drives the real dev-server app headlessly and walks all 7
+  flows, plus extra criteria checks.
+
+  Made 1 scratchpad edit +232 (ctrl+o to expand)
+
+⏺ Bash(cd /private/tmp/claude-501/-Users-achillies-projects-waseek-ahmed-calcula
+      tor/513852fc-3a86-4506-98d6-7a64de72c38c/scratchpad && sed -i '' "/await
+      typeInto('#fri…)
+  ⎿  "webSocketDebuggerUrl": "ws://localhost:9333/devtools/browser/3c982218
+     -88de-4fa8-93d2-4d19f6f54f47"
+  ⎿  Shell cwd was reset to 
+     /Users/achillies/projects/waseek-ahmed-calculator
+
+⏺ Bash(cd /private/tmp/claude-501/-Users-achillies-projects-waseek-ahmed-calcula
+      tor/513852fc-3a86-4506-98d6-7a64de72c38c/scratchpad && timeout 120 node
+      walk.mjs ws://l…)
+  ⎿  Error: Exit code 127
+     zsh: command not found: timeout
+
+⏺ Bash(cd /private/tmp/claude-501/-Users-achillies-projects-waseek-ahmed-calcula
+      tor/513852fc-3a86-4506-98d6-7a64de72c38c/scratchpad && node walk.mjs
+      ws://localhost:933…)
+  ⎿  Error: Exit code 1
+
+     == 1. Empty first run
+     PASS  no New bill button
+     PASS  no Back to payments
+     PASS  total hint
+     PASS  total hint is not an error
+     PASS  name hint
+     PASS  payer share is —
+     PASS  message placeholder
+     … +93 lines (ctrl+o to expand)
+
+⏺ Both test-script failures came from my own edits: a deleted line left a
+  friend-field error in the copy-blocked check, and the wa.me check read the
+  tab's URL too early. I'm tightening both checks and rerunning them.
+
+⏺ Bash(cd /private/tmp/claude-501/-Users-achillies-projects-waseek-ahmed-calcula
+      tor/513852fc-3a86-4506-98d6-7a64de72c38c/scratchpad && python3 - <<'EOF'
+      p='walk.mjs';…)
+  ⎿  == 1. Empty first run
+
+     == 2. 1000 with Waseek, Ali, Sara
+     … +18 lines (ctrl+o to expand)
+  ⎿  Shell cwd was reset to 
+     /Users/achillies/projects/waseek-ahmed-calculator
+  ⎿  (timeout 2m)
+
+⏺ Still no wa.me tab captured. I'm checking what headless Chrome actually opens
+  when that button is pressed.
+⏺ Bash(cd /private/tmp/claude-501/-Users-achillies-projects-waseek-ahmed-calcula
+      tor/513852fc-3a86-4506-98d6-7a64de72c38c/scratchpad && python3 - <<'EOF'
+      p='walk.mjs';…)
+  ⎿        opened: undefined ["page http://localhost:5199/","browser_ui chr
+     ome://omnibox-popup.top-chrome/omnibox_popup_aim.html","page http://lo
+     calhost:5199/","page http://localhost:5199/","page https://wa.me/?text
+     … +5 lines (ctrl+o to expand)
+  ⎿  Shell cwd was reset to 
+     /Users/achillies/projects/waseek-ahmed-calculator
+  ⎿  (timeout 2m)
+
+⏺ The wa.me tab does open (it's in the target list). My event listener just
+  missed it. I'll check the target list directly instead, compare against the
+  full expected URL, and close old tabs first.
+
+⏺ Bash(cd /private/tmp/claude-501/-Users-achillies-projects-waseek-ahmed-calcula
+      tor/513852fc-3a86-4506-98d6-7a64de72c38c/scratchpad && python3 - <<'EOF'
+      import re…)
+  ⎿  exit 0
+     80
+     … +17 lines (ctrl+o to expand)
+  ⎿  Shell cwd was reset to 
+     /Users/achillies/projects/waseek-ahmed-calculator
+  ⎿  (timeout 2m)
+
+⏺ All 80 checks pass. Before I update the README, I'm taking screenshots at
+  phone width (light and dark mode) to check the layout.
+
+⏺ Bash(cd /private/tmp/claude-501/-Users-achillies-projects-waseek-ahmed-calcula
+      tor/513852fc-3a86-4506-98d6-7a64de72c38c/scratchpad && cat > shot.mjs
+      <<'EOF'
+      const [ws…)
+  ⎿  setup-light.png
+     setup-locked-dark.png
+     track-dark.png
+     track-light.png
+  ⎿  Shell cwd was reset to 
+     /Users/achillies/projects/waseek-ahmed-calculator
+  ⎿  (timeout 1m)
+
+  Read 3 files (ctrl+o to expand)
+
+⏺ The layout works in both modes. One visual bug: on Track the checkbox floats
+  in a wide gap because .row > input { flex: 1 } also stretches checkboxes.
+  Fixing that, then rechecking.
+
+⏺ Bash(sed -i '' 's|^\.row > input { flex: 1; }|.row >
+      input:not([type="checkbox"]) { flex: 1; }|' src/index.css && grep -n 'row
+      > input' src/index.css && cd /private/…)
+  ⎿  91:.row > input:not([type="checkbox"]) { flex: 1; }
+  ⎿  Shell cwd was reset to 
+     /Users/achillies/projects/waseek-ahmed-calculator
+  ⎿  (timeout 1m)
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ The gap is still there. Checking the computed layout of the checkbox:
+
+⏺ Bash(cd /private/tmp/claude-501/-Users-achillies-projects-waseek-ahmed-calcula
+      tor/513852fc-3a86-4506-98d6-7a64de72c38c/scratchpad && cat > probe.mjs
+      <<'EOF'
+      const [w…)
+  ⎿  [
+      "row",
+      "1",
+     … +5 lines (ctrl+o to expand)
+  ⎿  Shell cwd was reset to 
+     /Users/achillies/projects/waseek-ahmed-calculator
+
+⏺ Bash(curl -s http://localhost:5199/src/index.css | grep -o 'row >
+      input[^}]*}')
+  ⎿  row > input { flex: 1; }
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ The dev server missed the edit because its file watcher doesn't work in the
+  sandbox, though it still serves files. I'm restarting it and rerunning the
+  walkthrough and screenshots on the final CSS.
+
+⏺ Bash(pkill -f "vite --port 5199"; sleep 1; cd
+      /Users/achillies/projects/waseek-ahmed-calculator &&
+      (node_modules/.bin/vite --port 5199 --strictPort > $TMPDIR/vite.lo…)
+  ⎿  row > input:not([type=\"checkbox\"]) { flex: 1; }
+
+⏺ Background command "Show status and start dev server" failed with exit code
+144
+
+⏺ That exit is the old server I killed on purpose. The new one is serving the
+  fresh CSS.
+
+⏺ Bash(cd /private/tmp/claude-501/-Users-achillies-projects-waseek-ahmed-calcula
+      tor/513852fc-3a86-4506-98d6-7a64de72c38c/scratchpad && node walk.mjs
+      ws://localhost:933…)
+  ⎿  exit 0
+     80
+     ALL PASSED
+  ⎿  Shell cwd was reset to 
+     /Users/achillies/projects/waseek-ahmed-calculator
+  ⎿  (timeout 2m)
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Everything is verified. Now updating the README: status line, Running the app,
+  build-order table and assumptions.
+
+⏺ Bash(python3 - <<'EOF'
+      p='README.md'; s=open(p).read()…)
+  ⎿   README.md | 28 ++++++++++++++++++++--------
+      1 file changed, 20 insertions(+), 8 deletions(-)
+      M .gitignore
+     … +15 lines (ctrl+o to expand)
+
+⏺ Last step: rerunning the test and build commands on the final code.
+
+⏺ Bash(npm test 2>&1 | tail -5; npm run build 2>&1 | tail -5)
+  ⎿   Test Files  1 passed (1)
+           Tests  68 passed (68)
+        Start at  17:12:48
+     … +8 lines (ctrl+o to expand)
+
+⏺ Stages 1 to 3 are built. npm test passes, npm run build succeeds, and all 7 of
+  your flows passed in the running app. I haven't changed any story status and
+  haven't committed anything.
+
+  npm test
+   Test Files  1 passed (1)
+        Tests  68 passed (68)
+  npm run build
+  dist/assets/index-DatAoEb1.css    3.41 kB │ gzip:  1.21 kB
+  dist/assets/index-BWwxud_n.js   230.03 kB │ gzip: 72.11 kB
+  ✓ built in 86ms
+
+  What I built
+
+  - Setup: Vite 8, React 19, TypeScript, Vitest 4, .nvmrc (20) and .gitignore
+    (added *.tsbuildinfo). I left out the template's ESLint packages, so there
+    are fewer dependencies than the template, not more.
+  - src/split.ts (no React): total parsing, name rules, the split, the message,
+    the summary line, the wa.me URL, and the check on saved data.
+  - src/split.test.ts: every S-1, S-2, S-4 and S-5 example, damaged-data cases,
+    and a property test (a seeded random loop, 20,000 cases) checking that
+    shares are whole, never negative and always add up exactly to the total.
+  - src/App.tsx and src/index.css: both screens, the inline confirmations and
+    every state in the plan.
+  - README: status line, build-order table (stages 1–3 Done), "Running the app"
+    and the assumptions below.
+
+  The 7 flows
+
+  The Chrome extension wasn't connected, so I drove headless Chrome against the
+  dev server with a script in the scratchpad:
+  /private/tmp/claude-501/-Users-achillies-projects-waseek-ahmed-calculator/5138
+  52fc-3a86-4506-98d6-7a64de72c38c/scratchpad/walk.mjs. It made 80 checks and
+  all passed. I also checked the layout in screenshots at phone width, light and
+  dark.
+
+  ┌─────────────────────────────────────────────────────────────────┬────────┐
+  │                              Flow                               │ Result │
+  ├─────────────────────────────────────────────────────────────────┼────────┤
+  │ 1. Empty first run: hints, — shares, buttons disabled, focus in │ Pass   │
+  │  Bill total, no New bill                                        │        │
+  ├─────────────────────────────────────────────────────────────────┼────────┤
+  │ 2. 1000 with Waseek, Ali and Sara: 332 / 334 / 334, message     │ Pass   │
+  │ matches S-4 character for character                             │        │
+  ├─────────────────────────────────────────────────────────────────┼────────┤
+  │ 3. Copy: clipboard holds exactly the message, Track opens with  │ Pass   │
+  │ the Copied notice, focus on the heading                         │        │
+  ├─────────────────────────────────────────────────────────────────┼────────┤
+  │ 4. Tick Ali and refresh: still on Track, Ali still ticked,      │ Pass   │
+  │ Copied notice gone                                              │        │
+  ├─────────────────────────────────────────────────────────────────┼────────┤
+  │ 5. Edit bill: Setup is locked; Esc and Cancel keep the ticks;   │ Pass   │
+  │ Yes clears them and unlocks; total and people can be changed    │        │
+  ├─────────────────────────────────────────────────────────────────┼────────┤
+  │ 6. New bill, Yes, refresh: still empty                          │ Pass   │
+  ├─────────────────────────────────────────────────────────────────┼────────┤
+  │ 7. Five kinds of damaged data: empty bill each time, no crash,  │ Pass   │
+  │ no console errors                                               │        │
+  └─────────────────────────────────────────────────────────────────┴────────┘
+
+  The script also checked the S-1 and S-2 errors through the UI, storage
+  blocked, clipboard blocked, Copy on Track (Copied ✓ for about 2 seconds), and
+  that Open in WhatsApp opens the exact wa.me URL.
+
+  What I couldn't fully verify
+
+  - Real devices: I tested blocked storage and a blocked clipboard by faking
+    them in the page, not on a real private-browsing phone.
+  - Screen readers and contrast: the ARIA attributes are in place, but I didn't
+    test with a screen reader or measure contrast with a tool.
+  - Real WhatsApp: I only checked that the wa.me tab opens at the right URL.
+
+  Decisions you should know about
+
+  - Vitest is pinned to 4, not 5. Vitest 5 needs Node 22, which conflicts with
+    your Node 20 .nvmrc. Vite 8 also needs at least Node 20.19, so the README
+    now says 20.19+.
+  - Singular tick warning. With one tick it reads This will clear 1 payment 
+    tick. Continue?. The story only gives the two-tick example. If you want
+    "ticks" every time, it's one line.
+  - The total input text lives in React state, not in the saved bill. The bill
+    and localStorage hold the total only as an integer. Because of that, a
+    reloaded total shows as 1500, not 1,500.
+  - Commas are allowed anywhere between digits, so the Pakistani-style 1,00,000
+    works as well as 1,500.
+  - Two focus decisions. After Yes on "Change total or people", the button is
+    gone, so focus goes to Bill total. On Setup the first heading is Bill total
+    itself (the label is inside the heading).
+  - Strict saved-data check. Saved data with duplicate friends, a fractional
+    total or over-long payment details counts as damaged and opens an empty
+    bill.
+  - Plan wording. docs/ui-plan.md still says "not built yet". I left it, since
+    you said not to change the docs on my own.
+
+  I found no conflicts between the stories and the UI plan. npm run doesn't work
+  inside the Claude Code sandbox (it blocks npm from starting its script
+  shell). Run normally, all the commands work; /sandbox manages these limits.
+
+✻ Sautéed for 12m 32s · done 5:13 PM
+
+❯ have we updated all the docs? if not please do so                             
+
+⏺ Not everything. The README is up to date, but docs/ui-plan.md still says "not
+  built yet", and a few of my build decisions are only in the README. I'll fill
+  those gaps without changing any story status.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ Bash(python3 - <<'EOF'
+      def edit(p, pairs):…)
+  ⎿   .gitignore           |  1 +
+      CLAUDE.md            |  2 ++
+      README.md            | 29 +++++++++++++++++++++--------
+     … +2 lines (ctrl+o to expand)
+⏺ No, a few gaps were left, and they're filled now. Every doc matches what was
+  built, and every story still says Not implemented.
+
+  - docs/ui-plan.md:
+    - The status line now says the plan is built and waiting for your
+      hand-check, where it used to say "not built yet".
+    - Which heading gets focus when you change screens: Bill total on Setup, the
+      bill line on Track.
+    - A reloaded total shows as plain digits (1500, not 1,500).
+    - Focus goes to Bill total after Yes on "Change total or people".
+    - With one tick, the warning uses the singular "tick".
+  - docs/user-stories.md: S-7 now gives the one-tick wording, This will clear 1 
+    payment tick. Continue?. Nothing else in the stories changed.
+  - README.md: added a Session 02 line under "AI tool and model". Last turn
+    already updated the status line, "Running the app", the build-order table
+    and the assumptions.
+  - CLAUDE.md: added that the project needs Node 20.19+ and why Vitest is pinned
+    to 4.
+
+  The S-7 change is the only edit to your spec. If you'd rather keep "ticks"
+  even for one tick, it's a one-line change in src/App.tsx, and I'd remove that
+  S-7 line and the matching UI-plan bullet.
+
+  app-roles.md and jobs-to-be-done.md needed no changes. "Code changed by hand"
+  in the README still says "None yet", because you haven't edited any code by
+  hand.
+
+✻ Cooked for 27s · done 5:18 PM
+
+※ recap: We're building the Bill Split Tracker; stages 1 to 3 are done, tests and build pass, all seven flows passed, and the docs are updated. Next, you hand-check each acceptance criterion in the running app before any story is marked Implemented. (disable recaps in /config)

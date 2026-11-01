@@ -51,8 +51,10 @@ Saved state: `view: "setup" | "track"` and `sent: boolean` are saved with the bi
 ## Header (both screens)
 
 ```
-Bill Split                      [New bill]
+BILL [SPLIT]               [New bill] [☾]
+You paid. Get it back.
 ```
+- **[☾] / [☀]** switches the page between dark and light. It follows the system until pressed, then the choice is remembered in this browser (`bill-split-theme` in localStorage, separate from the bill). It's a real `<button>` labelled `Dark mode` with `aria-pressed`, and it's always shown.
 - **New bill** is hidden while the bill is completely empty.
 - Its confirmation replaces the header bar in place (see Inline confirmations).
 - If storage is blocked, a grey notice that can't be dismissed sits under the header: `This bill can't be saved in this browser`.
@@ -109,7 +111,7 @@ Bill Split                      [New bill]
 ### People
 - **Your row is first:** a `Your name` input (`autocomplete="name"`) and your share. The grey hint `Enter your name` shows when it's empty. Name errors such as `Ali is already in the list` show in red in the same place.
 - **Friend rows:** `Name ......... 334 PKR  ✕`. Amounts are right-aligned with tabular numbers. `✕` is a real `<button>` with `aria-label="Remove Ali"`, and removing happens instantly with no confirm. There are no checkboxes on Setup, because ticking happens on Track.
-- Shares show `—` while there's no valid split.
+- Shares are left blank while there's no valid split.
 - **Add a friend:** visible label, a text field and an **Add** button. Enter also adds. After adding, the field clears and keeps focus. Errors show under the field and clear as soon as you type again. New friends go to the bottom.
 
 ### Payment details
@@ -182,9 +184,9 @@ Start a new bill? This clears everything.         (header bar)
 
 | State | Screen | What's different |
 |---|---|---|
-| First run / empty | Setup | Grey hints. Shares show `—`. The message area shows what's missing and its buttons are disabled. No New bill, no Back to payments. |
+| First run / empty | Setup | Grey hints. Shares are blank. The message area shows what's missing and its buttons are disabled. No New bill, no Back to payments. |
 | Ready | Setup | Shares and the bubble show. The send buttons are enabled. |
-| Invalid total | Setup | A red error under the total. Shares show `—`. The send buttons are disabled. |
+| Invalid total | Setup | A red error under the total. Shares are blank. The send buttons are disabled. |
 | Just sent | Track | Nobody is ticked. `1 of N paid · … still to collect`. The copied notice shows if you copied. |
 | Collecting | Track | Some friends are ticked. |
 | All paid | Track | Green `Everyone has paid ✓`. |
@@ -198,12 +200,16 @@ Start a new bill? This clears everything.         (header bar)
 - On a screen change, focus goes to the new screen's first heading.
 - Contrast meets WCAG AA in both light and dark mode.
 
-## Look (minimal, no dependencies)
-- System font stack (`system-ui`). Amounts use tabular numbers.
-- Neutral greys plus **one green accent**, used for the primary button, the ticks and `Everyone has paid ✓`. Red is used only for error text.
-- One 8px corner radius for every input, button, card and the bubble.
-- Light and dark mode come from `prefers-color-scheme`, using CSS variables.
-- No animation apart from the `Copied ✓` text swap.
+## Look (brutalist, no dependencies)
+- **Title:** a big heavy uppercase `BILL SPLIT`, with `SPLIT` in a tilted pink sticker, and the tagline `You paid. Get it back.` underneath.
+- **Every section is its own card:** thick black border, a hard offset shadow, no rounded corners, and a numbered tag (`01`, `02`…) on Setup. Setup: total is yellow, people cyan, payment details pink, message lime. Track: bill line yellow, status a black block, checklist cyan, message pink.
+- Cards are always black text on a bright colour, so contrast holds in light and dark mode. Only the page background (a dotted paper texture) and the shadows switch between light and dark: by `prefers-color-scheme`, or by the header toggle once pressed (`data-theme` on `<html>`).
+- Heavy display font for headings (`Arial Black` stack), monospace for amounts and the total field, `system-ui` for the rest.
+- Primary buttons are black, secondary are white. Errors are red text in a white box with a red border. The locked total field is hatched.
+- **Focus:** a text field lifts with a hard black shadow and turns pale yellow. Buttons, checkboxes and headings get a dashed outline (black on cards, matching the shadow colour on the page background). No blue browser ring.
+- **Compact:** cards are 22px apart with 14px padding. Controls stay at the 44px tap-target minimum.
+- **Track adds a progress bar** under the status line (you count as paid, so it starts at 1 of N). It's `aria-hidden` because the status line already says the same thing. Ticked rows turn lime, and `Everyone has paid ✓` turns the status block lime with a small pop.
+- **Motion:** cards slide in when a screen opens, buttons lift on hover and press down on click, the title sticker tilts on hover. All of it is off under `prefers-reduced-motion`.
 
 ## Deliberately left out
 A step-by-step wizard, a router, toasts, modals, tooltips, an icon library, onboarding, undo for remove, and reordering people.

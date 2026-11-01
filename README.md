@@ -1,6 +1,6 @@
 # Bill Split Tracker
 
-> **Status: working UI for S-1 to S-8 built, waiting for the hand-check.** See the build order below.
+> **Status: v1 complete.** Stories S-1 to S-8 are built and checked by hand (Implemented). S-9 to S-13 are Not implemented.
 
 ## What it is and who it's for
 
@@ -14,7 +14,7 @@ This app is for **the person who paid**. They enter the total and who was there.
 
 - [App roles](docs/app-roles.md): Bill Payer and Group Member
 - [Jobs to be done](docs/jobs-to-be-done.md): J-1 to J-3
-- [User stories with acceptance criteria](docs/user-stories.md): S-1 to S-8 planned for v1, S-9 to S-13 for later
+- [User stories with acceptance criteria](docs/user-stories.md): S-1 to S-8 Implemented, S-9 to S-13 Not implemented (next up)
 - [UI and UX plan](docs/ui-plan.md): the Setup and Track screens, how you move between them, and every state (locked)
 
 ## Key decisions
@@ -46,20 +46,24 @@ The code is four files in `src/`: `split.ts` (pure maths, validation, message te
 |---|---|---|
 | 1 | Set up Vite + React + TS + Vitest, `.nvmrc`, `.gitignore` | Done |
 | 2 | `src/split.ts` + tests (rounding, too-small guard, validation, shares-add-up property test) | Done |
-| 3 | Plain working UI for S-1 to S-8 | Done (story statuses wait for stage 5) |
-| 4 | Visual design (user-led) | Not started |
-| 5 | Hand-check every acceptance criterion, then update the story statuses | Not started |
-| 6 | Final README, export transcripts, public GitHub repo, optional Vercel deploy | Not started |
+| 3 | Plain working UI for S-1 to S-8 | Done |
+| 4 | Visual design (user-led) | Done: brutalist style, see `docs/ui-plan.md` → Look |
+| 5 | Hand-check every acceptance criterion, then update the story statuses | Done: S-1 to S-8 Implemented |
+| 6 | Final README, export transcripts, public GitHub repo, optional Vercel deploy | In progress: README and transcripts done |
 
 ## AI tool and model
 
 - Claude Code, model Claude Opus 5.5 (`claude-opus-5-5`)
-- Session 01: planning interview and docs (`transcripts/session-01.md`)
-- Session 02: build stages 1 to 3 (project setup, `split.ts` with tests, working UI)
+- Transcripts are in `transcripts/`, exported with Claude Code's `/export` and left unchanged:
+  - Session 01: planning interview and product docs (`transcripts/session-01.txt`)
+  - Session 02: UI and UX plan (`transcripts/session-02.txt`)
+  - Session 03: build stages 1 to 3: project setup, `split.ts` with tests, working UI (`transcripts/session-03.txt`)
+  - Session 04: visual design, brutalist style (`transcripts/session-04.txt`)
+  - Session 05: final story statuses, README and packaging (`transcripts/session-05.txt`)
 
 ## Code changed by hand
 
-- None yet.
+- None. All code was written by Claude Code.
 
 ## Assumptions
 

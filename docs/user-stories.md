@@ -1,6 +1,6 @@
 # User Stories with Acceptance Criteria
 
-**Status rule:** a story is marked **Implemented** only after every one of its acceptance criteria has been checked by hand in the running app. Until then it stays **Not implemented**, and "(planned v1)" means it's in scope for the first version.
+**Status rule:** a story is marked **Implemented** only after every one of its acceptance criteria has been checked by hand in the running app. Until then it stays **Not implemented**. S-1 to S-8 were checked by hand and are Implemented.
 
 **Screens:** the app has two screens. **Setup** is where you enter the total, the people and the payment details and send the message. **Track** is where you tick people off. See `docs/ui-plan.md`.
 
@@ -8,14 +8,14 @@
 
 | ID | Job | Story | Status |
 |---|---|---|---|
-| S-1 | J-1 | Equal share per person | Not implemented (planned v1) |
-| S-2 | J-1 | Add and remove people | Not implemented (planned v1) |
-| S-3 | J-1 | Ready-made message to copy or open in WhatsApp | Not implemented (planned v1) |
-| S-4 | J-3 | One clear amount and where to send it | Not implemented (planned v1) |
-| S-5 | J-2 | Tick people off as they pay | Not implemented (planned v1) |
-| S-6 | J-2 | Bill is still there later | Not implemented (planned v1) |
-| S-7 | J-2 | Warning before edits clear the ticks | Not implemented (planned v1) |
-| S-8 | J-2 | Start a new bill | Not implemented (planned v1) |
+| S-1 | J-1 | Equal share per person | Implemented |
+| S-2 | J-1 | Add and remove people | Implemented |
+| S-3 | J-1 | Ready-made message to copy or open in WhatsApp | Implemented |
+| S-4 | J-3 | One clear amount and where to send it | Implemented |
+| S-5 | J-2 | Tick people off as they pay | Implemented |
+| S-6 | J-2 | Bill is still there later | Implemented |
+| S-7 | J-2 | Warning before edits clear the ticks | Implemented |
+| S-8 | J-2 | Start a new bill | Implemented |
 | S-9 | J-1 | Custom amount for one person | Not implemented |
 | S-10 | J-1 | Paste a list of names | Not implemented |
 | S-11 | J-2 | Partial payments | Not implemented |
@@ -25,7 +25,7 @@
 ---
 
 ## S-1: Equal share per person
-*Serves J-1 · Not implemented (planned v1)*
+*Serves J-1 · Implemented*
 
 As a Bill Payer, I want to enter the bill total and see an equal share per person in whole rupees, so that I know what to ask for without doing the maths.
 
@@ -46,17 +46,17 @@ As a Bill Payer, I want to enter the bill total and see an equal share per perso
 - Given 10 people, when I enter `11`, then I see `Total is too small to split between 10 people in whole rupees.` and no shares are shown.
 
 **Invalid input**
-- Given the total is empty, then every share shows `—` and I see the hint `Enter the bill total`, not shown as an error.
-- When I enter `0` or `-50`, then I see `Total must be more than 0 PKR` and every share shows `—`.
-- When I enter `1500.50`, then I see `Enter whole rupees (no paisa)` and every share shows `—`. The total is never silently rounded.
-- When I enter `12abc`, `abc` or `1e5`, then I see `Enter a number in whole rupees` and every share shows `—`.
+- Given the total is empty, then every share is left blank and I see the hint `Enter the bill total`, not shown as an error.
+- When I enter `0` or `-50`, then I see `Total must be more than 0 PKR` and every share is left blank.
+- When I enter `1500.50`, then I see `Enter whole rupees (no paisa)` and every share is left blank. The total is never silently rounded.
+- When I enter `12abc`, `abc` or `1e5`, then I see `Enter a number in whole rupees` and every share is left blank.
 
 **Carrying on after a result or an error**
 - Given the error `Enter a number in whole rupees` is showing, when I change the total to `900`, then the error disappears and each share shows `300 PKR`.
 - Given shares are showing for `900`, when I change the total to `1000`, then the shares update straight away to 334 / 334 / 332.
 
 ## S-2: Add and remove people
-*Serves J-1 · Not implemented (planned v1)*
+*Serves J-1 · Implemented*
 
 As a Bill Payer, I want to add and remove people by name, so that the split matches who was actually there.
 
@@ -66,12 +66,12 @@ As a Bill Payer, I want to add and remove people by name, so that the split matc
 - When I add `علی` or `Sara 🍕`, then the name is accepted and shown exactly as typed.
 
 **Invalid input**
-- Given my name is empty, then I see `Enter your name` and every share shows `—`.
-- Given only my name and a total, with no friends, then every share shows `—` and the message area says what's missing (see S-3).
+- Given my name is empty, then I see `Enter your name` and every share is left blank.
+- Given only my name and a total, with no friends, then every share is left blank and the message area says what's missing (see S-3).
 - When I try to add an empty or spaces-only name, then nothing is added and I see `Enter a name`.
 - Given Ali is in the list, when I try to add `ali` or ` ALI `, then nothing is added and I see `Ali is already in the list`.
 - Given my name is `Waseek`, when I try to add `waseek`, then nothing is added and I see `Waseek is already in the list`.
-- Given Ali is a friend, when I change my name to `Ali`, then I see `Ali is already in the list` under my name and every share shows `—`.
+- Given Ali is a friend, when I change my name to `Ali`, then I see `Ali is already in the list` under my name and every share is left blank.
 
 **Boundaries**
 - When I add a 30-character name, then it is accepted. When I add a 31-character name, then nothing is added and I see `Names can be up to 30 characters.`
@@ -82,7 +82,7 @@ As a Bill Payer, I want to add and remove people by name, so that the split matc
 - Given I see `Ali is already in the list`, when I type `Ahmed` and add it, then the error disappears and Ahmed is added.
 
 ## S-3: Ready-made message to copy or open in WhatsApp
-*Serves J-1 · Not implemented (planned v1)*
+*Serves J-1 · Implemented*
 
 As a Bill Payer, I want a ready-made message with the share and my payment details that I can copy or open in WhatsApp, so that I can ask the group in one go.
 
@@ -95,7 +95,7 @@ As a Bill Payer, I want a ready-made message with the share and my payment detai
 - Given the message is showing on Setup, when I change the total, the people or the payment details, then the message updates straight away.
 
 ## S-4: One clear amount and where to send it
-*Serves J-3 · Not implemented (planned v1)*
+*Serves J-3 · Implemented*
 
 As a Group Member, I want the message to give me one amount and where to send it, so that I can pay without asking questions.
 
@@ -112,7 +112,7 @@ As a Group Member, I want the message to give me one amount and where to send it
 - When I type or paste more than 200 characters into payment details, then the field stops at 200 characters.
 
 ## S-5: Tick people off as they pay
-*Serves J-2 · Not implemented (planned v1)*
+*Serves J-2 · Implemented*
 
 As a Bill Payer, I want to tick people off as they pay and see how many have paid and how much is still owed, so that I know when I've got everything back.
 
@@ -126,7 +126,7 @@ Example bill: a total of `1000`, with Waseek, Ali and Sara.
 - Given there's no valid split, then the Track screen can't be reached: both send buttons on Setup are disabled, and a reopened bill opens on Setup.
 
 ## S-6: Bill is still there later
-*Serves J-2 · Not implemented (planned v1)*
+*Serves J-2 · Implemented*
 
 As a Bill Payer, I want my bill and ticks to still be there when I come back later, so that I can keep tracking over several days.
 
@@ -138,7 +138,7 @@ As a Bill Payer, I want my bill and ticks to still be there when I come back lat
 - Given the browser blocks storage (for example, some private-browsing modes), when I use the app, then everything still works and I see `This bill can't be saved in this browser`.
 
 ## S-7: Warning before edits clear the ticks
-*Serves J-2 · Not implemented (planned v1)*
+*Serves J-2 · Implemented*
 
 As a Bill Payer, I want to be warned that changing the total or the people will clear the ticks, so that I don't lose track of payments by accident.
 
@@ -154,7 +154,7 @@ A tick means "paid the current share". If the shares change, the ticks can't be 
 - Given a friend is ticked, when I change my name or the payment details, then no warning appears and the ticks stay.
 
 ## S-8: Start a new bill
-*Serves J-2 · Not implemented (planned v1)*
+*Serves J-2 · Implemented*
 
 As a Bill Payer, I want to start a new bill after confirming, so that the old one doesn't get mixed up with the next.
 

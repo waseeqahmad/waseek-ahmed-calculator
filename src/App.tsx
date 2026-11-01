@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import {
   addFriendError, billLine, buildMessage, emptyBill, fmt, parseBill, parseTotal, payerError, split, summary, waUrl,
@@ -6,6 +6,7 @@ import {
 } from './split'
 
 const KEY = 'bill-split-tracker'
+const THEME_KEY = 'bill-split-theme'
 
 type Update = (patch: Partial<Bill>) => void
 
@@ -34,6 +35,18 @@ export default function App() {
   const [blocked, setBlocked] = useState(false)
   const [screen, setScreen] = useState(0) // bumped on every screen change; remounts the screen
   const [copied, setCopied] = useState(false) // arrived at Track by copying; never saved
+  const [dark, setDark] = useState(() => {
+    try {
+      const t = localStorage.getItem(THEME_KEY)
+      if (t === 'dark' || t === 'light') return t === 'dark'
+    } catch {
+      // storage blocked: follow the system
+    }
+    return matchMedia('(prefers-color-scheme: dark)').matches
+  })
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+  }, [dark])
 
   useEffect(() => {
     try {
@@ -53,7 +66,14 @@ export default function App() {
 
   const d = derive(bill)
   const empty = !bill.payer && !totalText.trim() && !bill.details && !bill.friends.length
-  const title = <h1>Bill Split</h1>
+  const title = (
+    <div className="brand">
+      <h1>
+        Bill <span>Split</span>
+      </h1>
+      <p className="tagline">You paid. Get it back.</p>
+    </div>
+  )
 
   return (
     <>
@@ -71,6 +91,22 @@ export default function App() {
             }}
           />
         )}
+        <button
+          type="button"
+          className="theme"
+          aria-label="Dark mode"
+          aria-pressed={dark}
+          onClick={() => {
+            setDark(!dark)
+            try {
+              localStorage.setItem(THEME_KEY, dark ? 'light' : 'dark')
+            } catch {
+              // storage blocked: the choice lasts until reload
+            }
+          }}
+        >
+          {dark ? '☀' : '☾'}
+        </button>
       </header>
       {blocked && <p className="notice">This bill can't be saved in this browser</p>}
       <p className="notice" aria-live="polite">
@@ -155,7 +191,7 @@ function Setup(p: {
   const locked = bill.friends.some((f) => f.paid)
   const ticks = bill.friends.filter((f) => f.paid).length
   const totalErr = parseTotal(p.totalText).error ?? d.splitErr
-  const share = (n: number | undefined) => (d.ok && n !== undefined ? `${fmt(n)} PKR` : '—')
+  const share = (n: number | undefined) => (d.ok && n !== undefined ? `${fmt(n)} PKR` : '')
 
   function addFriend(e: FormEvent) {
     e.preventDefault()
@@ -319,6 +355,7 @@ function Track(p: { first: boolean; bill: Bill; d: Derived; update: Update; onEd
         <button type="button" onClick={p.onEdit}>Edit bill</button>
       </div>
       <p className={paid === bill.friends.length ? 'status done' : 'status'} aria-live="polite">{status}</p>
+      <progress className="meter" value={paid + 1} max={d.n} aria-hidden="true" />
       <ul className="checklist">
         <li>
           <label className="row">

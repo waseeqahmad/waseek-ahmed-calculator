@@ -1,0 +1,1625 @@
+ ▐▛███▛█   Claude Code v2.1.316
+▝▜██████▀  Opus 5.5 · Claude Pro
+ ▝▝   ▝▝   ~/projects/waseek-ahmed-calculator
+
+
+❯ read BRIEF.local.md, I am going to build a simple split calculator for the    
+  person who paid the bill, mostly installing apps is a big darg for people so  
+  people have whatsapp groups where they just share their account number and    
+  everyone just sends the money over to theri account along with the screnshot. 
+  so for the user he wants to know if everyone paid the bills and thats pretty  
+  much it.  Interview me relentlessly about every aspect of this plan until we  
+  reach a shared understanding. Walk down each branch of the design tree,       
+  resolving dependencies between decisions one-by-one. For each question,       
+  provide your recommended answer.                                              
+  Ask the questions one at a timee                                              
+
+  Listed 1 directory (ctrl+o to expand)
+
+⏺ I've read the brief. Two constraints from it shape almost every decision
+  below:
+
+  - No cloud services or API keys. A reviewer has to be able to run it locally,
+    so there's no shared backend unless we bundle one.
+  - Every story marked Implemented gets checked by hand. So a smaller scope is
+    safer.
+
+  We'll start at the root of the tree, because everything else depends on it.
+
+  ---
+
+  Q1. Who actually touches the app: only the person who paid, or the group 
+  members too?
+
+  Your description says friends pay through their bank app and drop a screenshot
+  in WhatsApp. They never need the app. That leaves two options:
+
+  - A) Payer only. The payer splits the bill, gets a ready-to-paste WhatsApp
+    message (amount per person plus account number), and ticks people off as
+    screenshots come in. Members just get a text.
+  - B) Payer plus members. Members open a link and mark themselves paid. This
+    needs shared state, which means a backend. That conflicts with "no cloud
+    services", and it brings back the "people won't open things" problem you're
+    trying to avoid.
+
+  My recommendation: A, payer only. It matches what you said: the payer just
+  wants to know who has paid. It needs no backend, and it gives you one strong
+  role. To meet the brief's "roles" section honestly, you can describe a second
+  role, the group member, who never opens the app. That shows you thought about
+  them, and it gives you a "must never" rule: the app must never require members
+  to install or sign up for anything.
+
+  Do you agree with A, or do you picture members interacting with it?
+
+✻ Baked for 18s · done 3:38 PM
+
+❯ A                                                                             
+
+⏺ Locked: payer only. Group members are a described role that never opens the
+  app.
+
+  ---
+
+  Q2. How is the bill divided?
+
+  This is the "calculator" part, so it's what reviewers will push on hardest
+  with edge cases.
+
+  - A) Equal split only. Enter the total and the number of people (or their
+    names), and everyone owes total ÷ N.
+  - B) Equal split plus per-person overrides. Same as A, but the payer can fix
+    one person's amount (say, Ali only had a drink, so he owes 500). The
+    remainder is split equally among the others.
+  - C) Itemized. Enter each dish and assign it to people, with tax and tip
+    spread proportionally. This is the most realistic, but it's a lot to build
+    and a lot of acceptance criteria to write.
+
+  My recommendation: A, with B listed as a "Not implemented" story. In WhatsApp
+  group dinners, people usually just split equally. Equal split still has real
+  edge cases to cover in acceptance criteria:
+  - Rounding remainders. 1000 ÷ 3 = 333.33…, so who absorbs the extra paisa or
+    rupee?
+  - Zero or negative totals.
+  - One person.
+  - Huge numbers.
+
+  That's plenty to show rigor without overbuilding. B and C are good "what I'd
+  build next" items.
+
+  One sub-question that comes with A: does the payer count as one of the N 
+  people? I recommend yes by default. The payer ate too, owes their own share,
+  and is automatically marked as paid.
+
+  Equal split (A)? And do you agree the payer is included and auto-marked as
+  paid?
+
+✻ Baked for 8s · done 3:38 PM
+
+❯ how hard is B compared to A?                                                  
+
+⏺ The code isn't the hard part. B is maybe 20–30 more lines than A. The cost is
+  in the edge cases you'd have to specify and test by hand, and that roughly
+  doubles.
+
+  A (equal split) has a few cases:
+  - Total is empty, zero, negative, or not a number
+  - Number of people is less than 1 or not a whole number
+  - Rounding: 1000 ÷ 3 leaves 1 unit over, so someone absorbs it
+  - Very large totals
+
+  B adds a new set of cases on top of those:
+  - Overrides add up to more than the total, so the rest would owe a negative
+    amount
+  - Overrides add up to exactly the total, so the rest owe 0. Is that allowed?
+  - Everyone is overridden, but the sum doesn't match the total. Which one wins?
+  - The payer changes the total after setting overrides. Do the overrides stay
+    fixed?
+  - An override of 0 (someone didn't eat). Is that different from removing them?
+  - Removing a person who has an override
+  - Rounding the remainder across only the people without overrides
+  - UI state: clearing an override back to "equal share"
+
+  Each of those needs a clear rule, an error message, and an acceptance
+  criterion that a reviewer will actually click through. Any one you miss is a
+  story marked "Implemented" that doesn't work exactly as described. The brief
+  penalizes that more than having a smaller scope.
+
+  My take: B is a real product improvement. "Ali only had tea" happens
+  constantly. But it multiplies the risk for a 2–4 hour assignment. Build A, and
+  write B up as a well-specified Not implemented story. That alone shows you've
+  thought it through, which is what reviewers are grading. If A ends up done
+  and solid with time left over, B is a clean next step, since it extends A
+  without reworking it.
+
+  Go with A, and include the payer in the split, auto-marked as paid?
+
+✻ Brewed for 11s · done 3:39 PM
+
+❯ A                                                                             
+
+⏺ Locked: equal split. I'm taking your "A" to also mean the payer is included in
+  the split and auto-marked as paid. Tell me if not.
+
+  ---
+
+  Q3. What currency, and do amounts have decimals?
+
+  This affects rounding (the next question), so it comes first.
+
+  - A) One fixed currency, whole units only. For example PKR: nobody sends
+    333.33 rupees on a bank app.
+  - B) One fixed currency with 2 decimals. For example USD or EUR, where cents
+    matter.
+  - C) Currency picker. The payer chooses the currency and the decimals follow
+    it.
+
+  My recommendation: A, PKR with whole rupees, if that's your real context
+  (account numbers shared in WhatsApp groups is very much a Pakistan or South
+  Asia pattern). It matches how people actually transfer money, and it makes
+  rounding concrete and easy to test. The rule "decimal input like 1500.50 is
+  rejected or rounded" becomes a clear acceptance criterion. A currency picker
+  is speculative. Write the currency down as an assumption in the README.
+
+  Is this PKR in whole rupees, or a different currency or region?
+
+✻ Brewed for 15s · done 3:42 PM
+
+❯ A                                                                             
+
+⏺ Locked: PKR, whole rupees.
+
+  ---
+
+  Q4. When the total doesn't divide evenly, who absorbs the leftover rupees?
+
+  Take a 1000 PKR bill split 3 ways, which is 333.33 each:
+
+  - A) Everyone else rounds up, payer takes the remainder. Friends each send
+    334, and the payer's share is 332. Everyone else gets one simple number, the
+    sum is exactly 1000, and the payer (who did the work) gets the small
+    benefit.
+  - B) Uneven shares. Two people send 333 and one sends 334. The sum is exact,
+    but the message gets awkward ("Ali 334, others 333"), and who is "unlucky"
+    is arbitrary.
+  - C) Everyone else rounds down, payer covers the gap. Friends send 333 and the
+    payer's share is 334. The sum is exact, and the payer quietly loses a rupee
+    or two.
+
+  My recommendation: A. One number for everyone fits a single WhatsApp message
+  ("send 334 each to …"), the total always adds up exactly, and it's easy to
+  write acceptance criteria for.
+
+  One edge case this exposes, which needs a rule. With tiny totals and many
+  people, rounding up can push the payer's share negative. For example, 5 PKR
+  split among 10 people: 9 friends × 1 = 9 > 5. I recommend a minimum-total
+  rule: the total must be at least the number of people (1 PKR each), otherwise
+  show "Total must be at least 1 PKR per person." That rule guarantees the
+  payer's share is never negative and no friend owes 0.
+
+  Hmm, let me double-check that claim before you rely on it. With total = N
+  exactly, others pay ceil(1) = 1, and the payer pays N − (N−1) = 1. That works.
+  But with total = 11 and N = 10, others pay ceil(1.1) = 2, so 9 × 2 = 18 > 11,
+  and the payer's share is −7. So "at least 1 per person" is NOT enough. The
+  rule that actually guarantees a non-negative payer share under option A is:
+
+  ▎ (N − 1) × ceil(total / N) ≤ total
+
+  Realistic bills (hundreds or thousands of PKR, under about 20 people) never
+  come close to this. But the reviewer will try odd inputs, so we'd show a clear
+  error such as "Total is too small to split between N people in whole rupees."
+
+  That's a slightly awkward rule to explain, which is an argument for C. Under
+  C, friends round down and the payer covers the leftover, so the payer's share
+  is never negative. The only rule needed is "total ≥ number of people," so
+  nobody owes 0.
+
+  Revised recommendation: C, because the edge-case rule is simpler and there are
+  no surprises. The payer losing at most N−1 rupees is negligible. A remains a
+  valid choice if you prefer the payer to benefit, at the cost of that awkward
+  guard.
+
+  A or C?
+
+✻ Worked for 12s · done 3:43 PM
+
+❯ A                                                                             
+
+⏺ Locked: friends round up, payer absorbs the remainder. The guard rule is that
+  if (N−1) × ceil(total/N) > total, the app shows an error ("Total is too small
+  to split between N people in whole rupees") and no split appears. That guard
+  is a good candidate for the one runnable test.
+
+  ---
+
+  Q5. How does the payer enter the people?
+
+  Tracking who has paid needs some way to tell people apart, so this matters.
+
+  - A) Names, typed one by one. "Ali", "Sara", "Usman". The checklist reads
+    naturally, and the WhatsApp message can list names.
+  - B) Just a count. "5 people", with rows labelled Person 1–5. It's faster to
+    set up, but "Person 3 paid" is useless when you're matching screenshots to
+    people.
+  - C) Paste a list. Paste names separated by newlines or commas (for example,
+    copied from the WhatsApp group info), and the app splits them into people.
+
+  My recommendation: A, an "add name" input with an Enter-to-add list and a
+  remove button per name. It's the natural way to tick off "Sara sent her
+  screenshot." The payer's own name goes in a separate field ("Your name"), so
+  the app knows who to auto-mark as paid.
+
+  Edge cases this creates, which go into acceptance criteria:
+  - An empty or whitespace-only name is rejected
+  - Duplicate names ("Ali" twice) are rejected with "Ali is already in the
+    list". Otherwise you can't tell which Ali paid.
+  - Removing a person recalculates the split
+  - A minimum of 2 people in total (payer plus at least 1 friend), otherwise
+    there's nothing to split
+
+  C is a nice "Not implemented" story.
+
+  A, names one by one, with duplicates rejected?
+
+✻ Worked for 9s · done 3:46 PM
+
+❯ A                                                                             
+
+⏺ Locked: names entered one by one, with a separate "Your name" field for the
+  payer. Empty and duplicate names are rejected, and at least 2 people are
+  required.
+
+  ---
+
+  Q6. Does the bill survive closing the tab?
+
+  Screenshots trickle in over hours or days, so the payer will close the browser
+  and come back. This decides whether the "who paid" tracker is actually
+  useful.
+
+  - A) No persistence. Refresh and it's gone. That's fine for a calculator, but
+    it breaks the tracking job.
+  - B) One active bill, saved in the browser (localStorage). It survives
+    refreshes and restarts on the same device, and a "New bill" button clears it
+    after a confirmation.
+  - C) Multiple saved bills / history. For example "Dinner Friday" and "Trip
+    fuel", each tracked separately.
+
+  My recommendation: B. It's built into the browser, needs no backend (which
+  fits the brief), and covers the real job of "come back tomorrow and see who
+  still owes." C is a good "Not implemented" story. People do have overlapping
+  bills, but it brings in list and switching UI that isn't worth the time now.
+
+  Two consequences to accept:
+  - It only works on the same device and browser. Open it on your laptop and the
+    bill isn't there. That goes in the README assumptions.
+  - The "New bill" confirmation. I'd use an inline "Are you sure? Yes / Cancel"
+    instead of a browser confirm() popup, which is easier to test. Wiping
+    someone's tracking state by accident is the data-loss case worth guarding.
+
+  B, one bill saved in the browser?
+
+✻ Brewed for 8s · done 3:46 PM
+
+❯ B                                                                             
+
+⏺ Locked: one active bill in localStorage, with an inline-confirmed "New bill"
+  and same-device only.
+
+  ---
+
+  Q7. What does "paid" mean in the tracker?
+
+  - A) A checkbox per person. When the screenshot arrives, the payer ticks the
+    name. The display shows "3 of 5 paid · 668 PKR still owed."
+  - B) Record the amount received. The payer types what each person sent, which
+    handles partial payments ("Usman sent 200 of 334, owes 134").
+
+  My recommendation: A. Your words were "he wants to know if everyone paid,
+  that's pretty much it." Partial payments are rare in this flow, because people
+  send the exact number from the message. B adds input validation (overpaying,
+  negative amounts, decimals) and a "partially paid" state to every view. Write
+  B as a Not implemented story.
+
+  What the tracker shows with A:
+  - Each friend's name, share, and a paid toggle (it can be unticked if tapped
+    by mistake)
+  - The payer's row, auto-marked "paid (you)" and not toggleable
+  - A summary: "X of N paid" and "Y PKR still to collect"
+  - When everyone has paid: a clear "Everyone has paid ✓" state
+
+  Checkbox, A?
+
+✻ Cooked for 7s · done 3:47 PM
+
+❯ A screenshot is just a facny way of keeping the reocrd it can be optional too 
+
+⏺ Locked: paid is a checkbox.
+
+  On screenshots, I'm reading you as: the screenshot is how money gets proved in
+  WhatsApp, and the app doesn't need to touch it. The tick is the record. So
+  there's no screenshot upload in the app. If you meant an optional upload per
+  person, I'd still argue against it for now. localStorage holds roughly 5 MB,
+  so a few phone screenshots would fill it, and that brings a "storage full"
+  failure case. It's a fine Not implemented story ("attach proof of payment").
+
+  ---
+
+  Q8. What happens if the payer edits the bill after people have already paid?
+
+  Example: 3 friends have paid 334 each, then the payer notices the total was
+  really 1200, not 1000. Or they add a forgotten person.
+
+  - A) Edits are allowed, paid ticks are kept, and shares recalculate. Paid
+    friends now show as owing the difference ("Ali paid 334, now owes 400, short
+    66"). This is accurate, but it effectively needs B from Q7 (amounts paid),
+    which we just ruled out.
+  - B) Edits are allowed, and all paid ticks reset after an inline warning:
+    "Changing the total or the people will clear 3 payment ticks. Continue?"
+    This is simple and honest, and the payer re-ticks.
+  - C) Lock the bill once anyone is ticked. To edit, untick everyone or start a
+    new bill. It's the simplest code, but the most annoying for the user.
+
+  My recommendation: B. It stays consistent with "paid = a boolean": a tick
+  means "paid the current share," so if the share changes, the tick can't be
+  trusted. The warning prevents silent data loss. It also gives clean acceptance
+  criteria: given 2 ticked, when I change the total and confirm, then 0 are
+  ticked and the shares update. When I cancel, nothing changes.
+
+  Small refinement: renaming a person, or removing someone unpaid when shares
+  don't change, shouldn't reset anything. But removing anyone does change N and
+  therefore the shares. So the rule is: any change that changes the share 
+  amounts resets the ticks. Changes that don't (renaming, fixing the account 
+  number) keep them.
+
+  B?
+
+✻ Churned for 13s · done 3:48 PM
+
+❯ BB                                                                            
+
+⏺ Locked: any edit that changes the shares resets the paid ticks, after an 
+  inline warning. Renames and payment-detail edits keep the ticks.
+
+  ---
+
+  Q9. What payment details does the payer enter, and how strictly does the app 
+  check them?
+
+  These go into the WhatsApp message so friends know where to send money. In
+  Pakistan that might be a bank account number, an IBAN (PK + 22 characters), or
+  an Easypaisa/JazzCash mobile number.
+
+  - A) One free-text box. "Meezan · Waseek Ahmed · 0123456789", typed however
+    the payer likes and pasted into the message as written.
+  - B) Structured fields with validation. Bank name, account title, account
+    number, with IBAN and phone-number format checks.
+  - C) None. The payer sends their account details separately, as they already
+    do.
+
+  My recommendation: A, optional, with a length limit (about 200 characters).
+  The payer already knows how they like to share their details. Format checks
+  across IBANs, account numbers, and wallet numbers are a rabbit hole, and a
+  wrong rejection ("that's my real account number!") is worse than none. If the
+  box is empty, the message just leaves out that line. That also gives a clean
+  acceptance criterion.
+
+  It should be saved with the bill (localStorage), so it's there next time.
+  Saving it across new bills as a remembered default is a nice touch, but I'd
+  skip it for now.
+
+  A, free text and optional?
+
+✻ Churned for 9s · done 3:50 PM
+
+❯ A                                                                             
+
+⏺ Locked: an optional free-text payment details box, limited to 200 characters
+  and saved with the bill.
+
+  ---
+
+  Q10. How does the message get from the app into WhatsApp?
+
+  - A) A "Copy message" button. It copies to the clipboard, and the payer pastes
+    into the group. It works everywhere.
+  - B) An "Open in WhatsApp" button. A wa.me/?text=… link opens WhatsApp (app or
+    web) with the message pre-filled, and the payer picks the group.
+  - C) Both.
+
+  My recommendation: C. B is one line of code, a link with URL-encoded text, and
+  it saves a step on phones. A is the fallback for people on desktop without
+  WhatsApp Web, or who want to edit the text first. Both are native browser
+  features with no libraries.
+
+  Things to settle in acceptance criteria:
+  - Copy feedback. The button briefly shows "Copied ✓". If the clipboard is
+    blocked (some browsers block it outside https or localhost), it says
+    "Couldn't copy, select the text below" and the message is shown in a
+    selectable box anyway. So the message is always visible on screen as a 
+    preview, and the buttons are conveniences.
+  - Message draft:
+
+  Bill split: 1000 PKR between 3 people
+  Please send 334 PKR each to:
+  Meezan · Waseek Ahmed · 0123456789
+  Send a screenshot here once done 🙏
+
+  Should the message also list names ("Ali, Sara: 334 each")? Under the round-up
+  rule everyone except the payer owes the same, so I'd leave names out. It
+  keeps the message short and doesn't single anyone out.
+
+  C, both buttons plus a visible preview?
+
+✻ Crunched for 10s · done 3:50 PM
+
+❯ yes C                                                                         
+
+⏺ Locked: Copy and Open in WhatsApp buttons, with an always-visible message 
+  preview and the drafted message format.
+
+  ---
+
+  Q11. Should the app help chase the people who haven't paid?
+
+  Knowing who hasn't paid is half the job. The other half is the awkward nudge.
+  The tracker already knows the unpaid names, so the app could generate a second
+  message:
+
+  Reminder: still waiting on Ali, Usman
+  334 PKR each to:
+  Meezan · Waseek Ahmed · 0123456789
+
+  - A) Yes, a "Remind unpaid" message. It reuses the same Copy / Open in
+    WhatsApp buttons and preview. It's shown only when at least one person is
+    unpaid, and hidden (replaced by "Everyone has paid ✓") when all are ticked.
+  - B) No. The payer types reminders themselves.
+
+  My recommendation: A. It serves a distinct job ("When people are slow to pay,
+  I want to remind them without it being awkward, so I can get my money back"),
+  and that job gives you a second Jobs-To-Be-Done entry with real substance. It
+  reuses everything from Q10, so the cost is about 10 lines. Naming people in a
+  reminder is fine, and actually the point, unlike the first message.
+
+  A?
+
+✻ Baked for 8s · done 3:52 PM
+
+❯ not needing in this app                                                       
+⏺ Locked: no reminder message. I'll list it as a Not implemented story only if
+  you want it in the docs. Otherwise it's left out.
+
+  ---
+
+  Q12. Tech stack and how the reviewer runs it.
+
+  The brief says a reviewer must start it on a clean computer from your README.
+  Every dependency is something that could break during review.
+
+  - A) Plain HTML + CSS + vanilla JS, no build step. index.html, app.js, and
+    split.js (pure split math as an ES module). Start it with npx serve src or
+    python3 -m http.server. Tests use Node's built-in runner (node --test)
+    against split.js, with zero npm dependencies.
+  - B) Vite + React (or similar). It's familiar and gives nicer component
+    structure, but brings npm install, a build tool, and hundreds of packages
+    for an app with about 4 inputs and a list.
+  - C) A single index.html with everything inline. It opens with a double-click,
+    but it's harder to unit-test the math. Also, localStorage and clipboard
+    behave inconsistently on file:// across browsers (Safari especially), which
+    risks failing "works in Safari".
+
+  My recommendation: A. No install step, so the README is "Node 20, then run npx
+  serve src, open localhost:3000". The math lives in one testable module, and
+  the clipboard and localStorage behave consistently because it's served over
+  http://localhost. It also shows the reviewer you sized the tool to the
+  problem.
+
+  Tests I'd keep small: one split.test.js covering the round-up rule, the "too
+  small to split" guard, and input validation. UI behavior gets checked by hand
+  against the acceptance criteria, which the brief says reviewers do anyway.
+
+  Optional extra: deploy the same static folder to GitHub Pages or Vercel for a
+  public URL. It costs nothing and needs no build.
+
+  A?
+
+✻ Cogitated for 12s · done 3:52 PM
+
+❯ lets use something standard even though its small app if I want to add        
+  styling or reusablity lets use lightweight option B what you think?           
+
+⏺ That's a fair call, and I'd go with it. A framework costs one npm install and
+  a lockfile, and on a clean machine with Node 20 that's reliable. In return you
+  get component reuse, easy styling, and a stack every reviewer recognises.
+  Overbuilding is about features, not frameworks, and our feature list is
+  already tight.
+
+  The standard lightweight version I'd pick:
+
+  - Vite + React + TypeScript. TypeScript earns its place here because this is
+    money math. It catches bugs like a string "1000" reaching the split function
+    or undefined names at compile time instead of in the reviewer's hands.
+  - Plain CSS (one stylesheet, or CSS modules). It's enough for a small app.
+    Tailwind is fine too, but it's one more thing to configure for no real gain
+    at this size.
+  - Vitest for tests. It comes from the Vite ecosystem with no extra config.
+    Unit tests cover split.ts (round-up rule, too-small guard, validation).
+    Optionally, one React Testing Library test for the tick-reset-on-edit flow,
+    since that's the trickiest UI rule.
+  - No state library, no router. useState plus a small useLocalStorage hook
+    covers one screen and one bill.
+  - README commands: npm install → npm run dev → open the printed localhost URL.
+    npm test runs the tests. The Node version is pinned in package.json engines
+    and .nvmrc.
+  - Deploy: npm run build output to Vercel or GitHub Pages for the optional
+    public URL.
+
+  The one thing I'd keep from the earlier plan: the split math lives in a pure 
+  split.ts with no React in it. It's the part reviewers will probe, and it
+  should be testable on its own.
+
+  Vite + React + TS + plain CSS + Vitest?
+
+✻ Worked for 12s · done 3:53 PM
+
+❯ sounds good                                                                   
+
+⏺ Locked: Vite + React + TypeScript + plain CSS + Vitest, with the split math in
+  a pure split.ts.
+
+  ---
+
+  Q13. What does the total field accept?
+
+  Reviewers will throw odd input at this field first.
+
+  ┌─────────────────────────┬───────────────────────────────────────────────┐
+  │          Input          │           My recommended behaviour            │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Empty                   │ No split shown; hint "Enter the bill total"   │
+  │                         │ (not a red error before they've typed)        │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ 0 or negative           │ "Total must be more than 0 PKR"               │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Decimals, e.g. 1500.50  │ Reject: "Enter whole rupees (no paisa)"       │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Letters or symbols,     │ "Enter a number in whole rupees"              │
+  │ e.g. 12abc, 1e5         │                                               │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Commas, e.g. 1,500      │ Accept, commas stripped. People copy totals   │
+  │                         │ off receipts like that.                       │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Very large, e.g.        │ Cap at 10,000,000 PKR: "Total can't be more   │
+  │ 999999999999            │ than 10,000,000 PKR"                          │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Leading or trailing     │ Trimmed silently                              │
+  │ spaces                  │                                               │
+  └─────────────────────────┴───────────────────────────────────────────────┘
+
+  Why reject decimals instead of rounding them: silently turning 1500.50 into
+  1501 is a "wrong result" under the brief's rules. An explicit message is
+  safer.
+
+  Why a cap: it keeps every number safely inside JavaScript's exact-integer
+  range and the layout readable. 10 million PKR covers any real group bill
+  (weddings included). The exact value is your call.
+
+  Use <input type="text" inputmode="numeric"> rather than type="number". Number
+  inputs silently accept 1e5, and they behave differently across browsers, which
+  makes acceptance criteria unreliable.
+
+  Do you agree with these rules, and is 10,000,000 an OK cap?
+
+✻ Brewed for 9s · done 3:54 PM
+
+❯ yes all obvious edge cases related to currency and always store money in INT  
+  or Decimal as i have read never store in float                                
+
+⏺ Agreed. Money is integer rupees end to end: parsed to an integer at the input
+  boundary, stored as an integer in state and localStorage, never a float.
+  Because we only allow whole rupees, a plain JS integer is exact up to 9
+  quadrillion, so no Decimal library is needed. Two guards in split.ts keep that
+  honest:
+
+  - The rounding avoids float division. It uses q = Math.trunc(total / n), r = 
+    total − q·n, share = r > 0 ? q + 1 : q, and every value is checked with
+    Number.isInteger.
+  - A test asserts that the shares always sum exactly to the total across many
+    total/N combinations. That one property test catches any rounding bug.
+
+  If paisa were ever added (Not implemented), the rule becomes "store integer
+  paisa", still never floats.
+
+  Locked: the total input rules from the table, with a 10,000,000 PKR cap.
+
+  ---
+
+  Q14. Limits on people and names?
+
+  ┌────────────────┬────────────────────────────────────────────────────────┐
+  │      Rule      │                     Recommendation                     │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ Minimum people │ 2 (you + at least 1 friend), as agreed in Q5           │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │                │ 50. That's larger than any real dinner or trip group,  │
+  │ Maximum people │ and keeps the list usable on a phone. Message: "A bill │
+  │                │  can have at most 50 people."                          │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ Name length    │ 1–30 characters after trimming: "Names can be up to 30 │
+  │                │  characters."                                          │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ Duplicate      │ Case-insensitive, trimmed: "ali", "Ali " and "ALI" all │
+  │ check          │  count as duplicates of "Ali"                          │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ Payer name vs  │ Also no duplicates. A friend can't share the payer's   │
+  │ friend names   │ name.                                                  │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ Characters     │ Anything allowed, including Urdu script and emoji.     │
+  │                │ React escapes output, so there's no injection risk.    │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ Payer name     │ Required: "Enter your name"                            │
+  │ empty          │                                                        │
+  └────────────────┴────────────────────────────────────────────────────────┘
+
+  The case-insensitive duplicate rule is the one people forget. Without it,
+  "Ali" and "ali" become two people, and the payer can't tell which one paid.
+
+  Agree with these limits?
+
+✻ Cogitated for 13s · done 3:55 PM
+
+❯ yes                                                                           
+
+⏺ Locked: 2–50 people, names of 1–30 characters, case-insensitive duplicate 
+  check that includes the payer, any script allowed, payer name required.
+
+  ---
+
+  Q15. Screen layout: one page or setup → tracker steps?
+
+  The payer is almost certainly on their phone, switching between WhatsApp and
+  this app.
+
+  - A) One page with a merged list. From top to bottom:
+    a. Bill: your name, total, payment details
+    b. People: add-name input, then a list where each row is name · share · paid
+       tick · remove. Your own row is pinned at the top as "paid (you)".
+    c. Summary: "3 of 5 paid · 668 PKR still to collect", or "Everyone has paid
+       ✓"
+    d. Message: preview + Copy + Open in WhatsApp
+    e. New bill (with inline confirm)
+  - B) Two steps. Step 1 sets up the bill, "Split" goes to a tracker screen, and
+    "Edit" goes back. The separation is cleaner, but it adds navigation state
+    and a "where am I" problem when you reopen it tomorrow.
+
+  My recommendation: A. The people list is the tracker, so there's no duplicate
+  UI and no navigation. Shares update live as you type. Reopening the app
+  tomorrow shows exactly where you left off. It's mobile-first, single column,
+  and the tick targets are thumb-sized (at least 44px), which also covers
+  accessibility basics: labelled inputs, real <button>/<input type="checkbox">,
+  and errors linked to their field with aria-describedby.
+
+  One consequence: while the inputs are invalid (for example, no total yet), the
+  share column shows "—", the paid ticks are disabled, and the message section
+  shows what's missing ("Add a total and at least one friend to create the
+  message").
+
+  A?
+
+✻ Churned for 9s · done 3:55 PM
+
+❯ lets not worry about UI right now I will design it myself in next session.    
+
+⏺ Locked: visual design and layout are deferred to your next session. I'll treat
+  them as behavior only: the states (the "—" shares and disabled ticks while
+  input is invalid, the "Everyone has paid ✓" state) and accessibility basics
+  (labelled inputs, real buttons and checkboxes, linked error messages). Those
+  are acceptance-criteria items no matter how it looks.
+
+  The product decisions are mostly settled, so now the documents. The brief
+  grades these as heavily as the code.
+
+  ---
+
+  Q16. App Roles. Do these two read true to you?
+
+  ▎ Bill Payer. A Bill Payer is a person who paid the whole bill for a group (a 
+  ▎ dinner, a trip, a shared order) and is now owed money by friends who will 
+  ▎ pay them back by bank or mobile-wallet transfer, coordinated in a WhatsApp 
+  ▎ group. They can enter the bill total, their own name, their payment details 
+  ▎ and the names of the people who shared the bill. They can see each person's 
+  ▎ share, mark who has paid, and copy a ready-made message for the group. They 
+  ▎ must never be shown shares that don't add up exactly to the bill total, and 
+  ▎ must never lose their payment record without confirming it first.
+
+  ▎ Group Member. A Group Member is a friend who shared the bill and owes the 
+  ▎ Bill Payer their share. They are in the WhatsApp group but do not install or
+  ▎ open any app; everything they need arrives as a message. They can see (in 
+  ▎ the message, not the app) how much to send and where to send it. They must 
+  ▎ never be required to install an app, create an account or open a link to pay
+  ▎ their share.
+
+  Why the second role is worth including even though they never open the app:
+  the brief asks for roles that "describe a real kind of person and explain how
+  their needs differ." The Group Member's need ("tell me one number and where to
+  send it") is exactly what shaped the message design and the round-up rule
+  (one equal number for everyone). It gives your product reasoning a visible
+  source.
+
+  Anything to change, like wording, who the Bill Payer is, or the "must never"
+  rules?
+
+✻ Baked for 9s · done 3:56 PM
+
+❯ sounds good! but make woridng more casual so reader can related even outside  
+  of our apps terminolgy                                                        
+
+⏺ Here's the casual rewrite. It still keeps the brief's required "A … is … They
+  can … They must never …" shape, because reviewers will check that format.
+
+  ▎ Bill Payer. A Bill Payer is the friend who picked up the tab, whether it's 
+  ▎ dinner, fuel on a road trip or a group food order, and now has to get 
+  ▎ everyone's share back. Everyone pays them back by bank transfer or 
+  ▎ Easypaisa/JazzCash, and it all happens in a WhatsApp group. They can put in 
+  ▎ what the bill came to, who was there and where to send the money, then see 
+  ▎ how much each person owes and tick people off as they pay. They must never 
+  ▎ end up with shares that don't add back up to the bill, and must never lose 
+  ▎ track of who's paid without saying so first.
+
+  ▎ Group Member. A Group Member is one of the friends who was there and owes 
+  ▎ the Bill Payer their share. They're in the WhatsApp group, and that's all 
+  ▎ they want to deal with. They just want to know how much to send and where to
+  ▎ send it. They can see that in a message posted in the group. They never 
+  ▎ need to touch the app. They must never have to download anything, sign up 
+  ▎ for anything or click a link just to pay back a friend.
+
+  Treat that as locked unless you want more tweaks.
+
+  ---
+
+  Q17. Jobs To Be Done. These must not mention the app or its features. Here are
+  three, in the same casual voice:
+
+  ▎ J-1 (Bill Payer). When I've paid for the whole group, I want to work out 
+  ▎ what each person owes quickly and fairly, so I can ask for the money 
+  ▎ straight away without doing maths at the table.
+
+  ▎ J-2 (Bill Payer). When friends are sending money back over a few hours or 
+  ▎ days, I want to keep track of who has paid and who hasn't, so I can tell 
+  ▎ when I've got everything back and who I still need to chase.
+
+  ▎ J-3 (Group Member). When I owe a friend for something we shared, I want to 
+  ▎ know exactly how much to send and where, so I can pay them back in a minute 
+  ▎ from my banking app and get on with my day.
+
+  Check each one: it still makes sense if the app doesn't exist (pen and paper,
+  a calculator, scrolling through WhatsApp). That's the test the brief applies.
+
+  I left out "remind people who haven't paid," because you dropped that feature.
+  A job could still exist without a feature, but every job then needs a story,
+  so it would just be a Not implemented story. I'd leave it out to keep the docs
+  honest and tight.
+
+  Do these three jobs work?
+
+✻ Churned for 11s · done 3:56 PM
+
+❯ sounds good                                                                   
+
+⏺ Locked: J-1, J-2, J-3.
+
+  ---
+
+  Q18. The user story list. Every story traces to a job. Full acceptance
+  criteria get written into docs/user-stories.md from the rules we've already
+  locked. First, agree the set:
+
+  Planned as Implemented
+
+  ┌─────┬─────┬──────────────────────────────────────────────────────────────┐
+  │ ID  │ Job │                            Story                             │
+  ├─────┼─────┼──────────────────────────────────────────────────────────────┤
+  │     │     │ As a Bill Payer, I want to enter the bill total and see an   │
+  │ S-1 │ J-1 │ equal share per person in whole rupees, so that I know what  │
+  │     │     │ to ask for without doing the maths. (round-up rule,          │
+  │     │     │ too-small guard, total validation)                           │
+  ├─────┼─────┼──────────────────────────────────────────────────────────────┤
+  │     │     │ As a Bill Payer, I want to add and remove people by name, so │
+  │ S-2 │ J-1 │  that the split matches who was actually there. (2–50        │
+  │     │     │ people, name rules, duplicates)                              │
+  ├─────┼─────┼──────────────────────────────────────────────────────────────┤
+  │     │     │ As a Bill Payer, I want a ready-made message with the share  │
+  │ S-3 │ J-1 │ and my payment details that I can copy or open in WhatsApp,  │
+  │     │     │ so that I can ask the group in one go.                       │
+  ├─────┼─────┼──────────────────────────────────────────────────────────────┤
+  │     │     │ As a Group Member, I want the message to give me one amount  │
+  │ S-4 │ J-3 │ and where to send it, so that I can pay without asking       │
+  │     │     │ questions. (message content, no payment line when details    │
+  │     │     │ are empty)                                                   │
+  ├─────┼─────┼──────────────────────────────────────────────────────────────┤
+  │     │     │ As a Bill Payer, I want to tick people off as they pay and   │
+  │ S-5 │ J-2 │ see how many have paid and how much is still owed, so that I │
+  │     │     │  know when I've got everything back.                         │
+  ├─────┼─────┼──────────────────────────────────────────────────────────────┤
+  │     │     │ As a Bill Payer, I want my bill and ticks to still be there  │
+  │ S-6 │ J-2 │ when I come back later, so that I can keep tracking over     │
+  │     │     │ several days.                                                │
+  ├─────┼─────┼──────────────────────────────────────────────────────────────┤
+  │     │     │ As a Bill Payer, I want to be warned that changing the total │
+  │ S-7 │ J-2 │  or the people will clear the ticks, so that I don't lose    │
+  │     │     │ track of payments by accident.                               │
+  ├─────┼─────┼──────────────────────────────────────────────────────────────┤
+  │     │     │ As a Bill Payer, I want to start a new bill after            │
+  │ S-8 │ J-2 │ confirming, so that the old one doesn't get mixed up with    │
+  │     │     │ the next.                                                    │
+  └─────┴─────┴──────────────────────────────────────────────────────────────┘
+
+  Not implemented (next up)
+
+  ┌──────┬─────┬─────────────────────────────────────────────────────────────┐
+  │  ID  │ Job │                            Story                            │
+  ├──────┼─────┼─────────────────────────────────────────────────────────────┤
+  │ S-9  │ J-1 │ Set a custom amount for one person (e.g. "Ali only had      │
+  │      │     │ tea")                                                       │
+  ├──────┼─────┼─────────────────────────────────────────────────────────────┤
+  │ S-10 │ J-1 │ Paste a list of names from WhatsApp group info              │
+  ├──────┼─────┼─────────────────────────────────────────────────────────────┤
+  │ S-11 │ J-2 │ Record partial payments ("sent 200 of 334")                 │
+  ├──────┼─────┼─────────────────────────────────────────────────────────────┤
+  │ S-12 │ J-2 │ Keep several bills at once                                  │
+  ├──────┼─────┼─────────────────────────────────────────────────────────────┤
+  │ S-13 │ J-2 │ Attach a screenshot as proof against a person               │
+  └──────┴─────┴─────────────────────────────────────────────────────────────┘
+
+  S-3 and S-4 are deliberately two stories about one message. Same feature,
+  different people and jobs, which shows the Group Member role isn't decoration.
+
+  Anything to add, cut or reword?
+
+✻ Cogitated for 15s · done 3:57 PM
+
+❯ sounds good                                                                   
+
+⏺ Locked: S-1 to S-8 Implemented, S-9 to S-13 Not implemented.
+
+  ---
+
+  Q19. Repo layout and delivery. Mostly dictated by the brief, so this is a
+  quick confirmation:
+
+  waseek-ahmed-calculator/      ← already the right name
+    README.md
+    package.json, vite.config.ts, tsconfig.json, index.html, .nvmrc
+    src/
+      split.ts          ← pure money math
+      split.test.ts
+      App.tsx …
+    docs/
+      app-roles.md
+      jobs-to-be-done.md
+      user-stories.md
+    transcripts/
+      session-01.md     ← this session, via /export
+      session-02.md     ← your UI design session
+
+  Decisions inside that:
+  - Vite at the repo root, with src/ as its source folder. That matches the
+    brief's layout without fighting Vite's defaults.
+  - .gitignore gets node_modules/, dist/, plus the existing *.local.md, so
+    BRIEF.local.md stays out of the repo. Good, since it's the employer's
+    document.
+  - Share it as a public GitHub repo. The brief warns about zip attachments.
+  - Optional public URL on Vercel (free, static build).
+  - README "code changed by hand" section. Keep a running note. If you hand-edit
+    anything during the UI session, it has to be listed.
+  - Export each session's transcript as-is before closing it. Scrub only keys or
+    tokens, which there shouldn't be any of.
+
+  Also, displayed amounts use thousands separators ("1,000 PKR") via
+  Intl.NumberFormat. That's display only, and storage stays as integers.
+
+  Does that layout and delivery plan work? If yes, I'll write up the full shared
+  understanding as a summary, and we can start building.
+
+✻ Baked for 10s · done 3:58 PM
+
+❯ good                                                                          
+
+⏺ That's the whole design tree. Here's everything we agreed on in one place, so
+  you can check it before we build.
+
+  Product
+
+  - Who it's for: only the person who paid the bill (the Bill Payer). Group
+    Members never open the app; they just get a WhatsApp message.
+  - How the bill is split: an equal split in PKR, whole rupees only.
+  - Rounding: each friend's share rounds up and the payer's own share takes the
+    remainder. For example, 1000 split 3 ways is 334, 334 and 332.
+    - If the total is too small for that to work, the app shows "Total is too
+      small to split between N people in whole rupees."
+  - Money: always stored as whole-number rupees, never floats. Shown with
+    thousands separators ("1,000 PKR").
+
+  What the app accepts
+
+  - Total:
+    - Whole rupees, more than 0 and at most 10,000,000.
+    - Commas and spaces are stripped.
+    - Decimals, letters and 1e5 are rejected with a clear message.
+    - The field is a text input set to numbers (inputmode="numeric"), not a
+      number input.
+  - People:
+    - 2 to 50 people in total.
+    - Names are 1–30 characters after trimming, and any language or emoji is
+      fine.
+    - The payer's name is required.
+    - Duplicates are rejected regardless of capital letters, and that includes
+      the payer's name.
+  - Payment details: one optional free-text box of up to 200 characters. If it's
+    empty, that line is left out of the message.
+
+  Tracking
+
+  - Marking payments: each friend gets a paid tick that can be undone. The payer
+    is automatically marked as "paid (you)".
+  - Summary: shows "X of N paid · Y PKR still to collect", or "Everyone has paid
+    ✓".
+  - Editing: any change that alters the shares asks for confirmation, then
+    clears the ticks. Renaming someone or editing the payment details keeps the
+    ticks.
+  - Saving: one bill is saved in the browser on that device only. "New bill"
+    asks for confirmation on the page itself (no browser popup).
+  - Message:
+    - It's always shown on screen.
+    - It has a Copy button (showing "Copied ✓", or a fallback message if copying
+      is blocked) and an Open in WhatsApp button.
+    - It doesn't list names.
+  - Left out: reminder messages, screenshot uploads, partial payments, and
+    keeping several bills at once.
+
+  Tech and delivery
+
+  - Stack: Vite + React + TypeScript + plain CSS + Vitest.
+  - Where the maths lives: a pure split.ts, with a test checking that the shares
+    always add up to the total.
+  - Layout: follows the brief (README.md, src/, docs/, transcripts/).
+  - Sharing: a public GitHub repo, with Vercel as an optional public URL.
+  - Visual design: deferred to your next session. This session covers behaviour,
+    states and accessibility basics only.
+
+  Documents
+
+  - Roles: Bill Payer and Group Member, in the casual wording.
+  - Jobs: J-1 (work out the split), J-2 (keep track of who's paid), J-3 (Group
+    Member: know what to send and where).
+  - Stories: S-1 to S-8 are Implemented and S-9 to S-13 are Not implemented,
+    each with the acceptance criteria built from the rules above.
+
+  Suggested build order:
+  1. Set up the project and .gitignore
+  2. split.ts and its tests
+  3. A plain, unstyled working UI
+  4. The three docs
+  5. README
+
+  You'll check each stage before the next one starts. Say go and I'll start with
+  step 1.
+
+✻ Churned for 14s · done 3:58 PM
+
+❯ For now add everything into the proper README file. So, in the next session,  
+  I know what I will be building along with the AI agent's ease as well.        
+
+⏺ Write(README.md)
+  ⎿  Wrote 215 lines to README.md
+      1 # Bill Split Tracker
+      2 
+      3 > **Status: planning complete, nothing built yet.** This README i
+        s the agreed plan from session 01 (`transcripts/session-01.md`). 
+        It is the source of truth for the build. Update the "Status" line
+        s as stages land, and rewrite this note once the app runs.
+      4 
+      5 ## What it is and who it's for
+      6 
+      7 When a group goes out (dinner, a road trip, a food order), one fr
+     … +209 lines (~13 KB) (ctrl+o to expand)
+
+⏺ I've written everything we agreed into README.md. Nothing has been built yet;
+  the README is the plan.
+
+  - Where to start next session: the "Build order" table near the bottom. Each
+    stage has a status line to update as it lands.
+  - For the AI agent: the "Product decisions (locked)" section has every exact
+    rule and error message, so the next session can read the README and start
+    without being re-interviewed.
+  - Docs: the roles and jobs are written in their final wording. The stories
+    still need full acceptance criteria, written from the rules in the README
+    (stage 5).
+  - Placeholders: the run commands are marked as planned, and the "Code changed
+    by hand" and "Assumptions" sections are there for you to keep filling in.
+
+  When you finish this session, run /export to save this conversation as
+  transcripts/session-01.md. The brief requires the full transcript of every
+  session.
+
+✻ Sautéed for 50s · done 4:00 PM
+
+❯ its good but we haven't write the claude.md file + the docs that they ask?    
+  Just make sure the context in the README file is manageable and is not too    
+  cluttered                                                                     
+
+⏺ Write(docs/app-roles.md)
+  ⎿  Wrote 21 lines to docs/app-roles.md
+      1 # App Roles
+      2 
+      3 ## Bill Payer
+      4 
+      5 A Bill Payer is the friend who picked up the tab, whether it's di
+        nner, fuel on a road trip or a group food order, and now has to g
+        et everyone's share back. Everyone pays them back by bank transfe
+        r or Easypaisa/JazzCash, and it all happens in a WhatsApp group.
+      6 
+      7 They can put in what the bill came to, who was there and where to
+     … +15 lines (ctrl+o to expand)
+
+⏺ Write(docs/jobs-to-be-done.md)
+  ⎿  Wrote 15 lines to docs/jobs-to-be-done.md
+      1 # Jobs To Be Done
+      2 
+      3 None of these jobs mention the app. Each one would still exist wi
+        th pen and paper, a phone calculator and a lot of scrolling throu
+        gh WhatsApp.
+      4 
+      5 ## J-1 (Bill Payer)
+      6 
+      7 When I've paid for the whole group, I want to work out what each 
+        person owes quickly and fairly, so I can ask for the money straig
+     … +9 lines (ctrl+o to expand)
+
+⏺ Write(docs/user-stories.md)  ⎿  Wrote 193 lines to docs/user-stories.md
+       1 # User Stories with Acceptance Criteria
+       2 
+       3 **Status rule:** a story is marked **Implemented** only after ev
+         ery one of its acceptance criteria has been checked by hand in t
+         he running app. Until then it stays **Not implemented**, and "(p
+         lanned v1)" means it's in scope for the first version.
+       4 
+       5 **Shared setup used in the examples** (unless an example says ot
+         herwise): the payer's name is `Waseek`, the friends are `Ali` an
+         d `Sara`, and payment details are empty. Error messages are quot
+     … +189 lines (~13 KB) (ctrl+o to expand)
+
+⏺ Write(CLAUDE.md)
+  ⎿  Wrote 29 lines to CLAUDE.md
+       1 # CLAUDE.md
+       2 
+       3 A bill-split tracker for the person who paid. It's a take-home a
+         ssignment (the brief is in `BRIEF.local.md`, which is git-ignore
+         d and must never be committed).
+       4 
+       5 ## Read first
+       6 - `docs/user-stories.md` is **the spec**. Every behaviour and er
+         ror message is in its acceptance criteria. Build to the criteria
+          exactly, using the exact message strings.
+     … +23 lines (ctrl+o to expand)
+
+⏺ Now slim the README, since the detail lives in the docs.
+
+⏺ Write(README.md)
+  ⎿  Added 36 lines, removed 184 lines
+        1  # Bill Split Tracker
+        2  
+        3 -> **Status: planning complete, nothing built yet.** This READM
+          -E is the agreed plan from session 01 (`transcripts/session-01.
+          -md`). It is the source of truth for the build. Update the "Sta
+          -tus" lines as stages land, and rewrite this note once the app 
+          -runs.                                                         
+        3 +> **Status: planned, not built yet.** See the build order belo
+          +w.                                                            
+        4  
+        5  ## What it is and who it's for
+        6  
+        7 -When a group goes out (dinner, a road trip, a food order), one
+          - friend pays the whole bill. In Pakistan the usual next step i
+          -s a WhatsApp group: the payer posts their account number, ever
+          -yone sends their share by bank transfer or Easypaisa/JazzCash,
+          - and drops a screenshot. Nobody wants to install an app for th
+          -is.                                                           
+        7 +When a group goes out, one friend pays the whole bill. In Paki
+          +stan the usual next step is a WhatsApp group: the payer posts 
+          +their account number, everyone sends their share by bank trans
+          +fer or Easypaisa/JazzCash, and drops a screenshot. Nobody want
+          +s to install an app for this.                                 
+        8  
+        9 -This app is for **the person who paid**. They enter the total 
+          -and who was there. The app works out each person's share and g
+          -ives them a ready-made WhatsApp message. As the screenshots co
+          -me in, they tick people off until everyone has paid. Their fri
+          -ends never open the app. They just read the message.          
+        9 +This app is for **the person who paid**. They enter the total 
+          +and who was there. The app works out each person's share and w
+          +rites a ready-made WhatsApp message. As the money comes in, th
+          +ey tick people off until everyone has paid. Their friends neve
+          +r open the app. They only read the message.                   
+       10  
+       11 -**Why this calculator:** splitting a bill is a real, frequent 
+          -problem with real edge cases (rounding, validation, editing af
+          -ter people have paid). It fits a 2–4 hour build without needin
+          -g a backend.                                                  
+       11 +**Why this calculator:** splitting a bill is a real, frequent 
+          +problem with real edge cases (rounding, validation, editing af
+          +ter people have paid), and it can be built in a few hours with
+          +out a backend.                                                
+       12  
+       13 ----                                                           
+       13 +## Product documents                                          
+       14  
+       15 -## Product decisions (locked)                                 
+       15 +- [App roles](docs/app-roles.md): Bill Payer and Group Member 
+       16 +- [Jobs to be done](docs/jobs-to-be-done.md): J-1 to J-3      
+       17 +- [User stories with acceptance criteria](docs/user-stories.md
+          +): S-1 to S-8 planned for v1, S-9 to S-13 for later           
+       18  
+       17 -### Roles                                                     
+       18 -- **Bill Payer** is the only person who uses the app.         
+       19 -- **Group Member** never opens the app. They get everything fr
+          -om a message posted in the WhatsApp group.                    
+       19 +## Key decisions                                              
+       20  
+       21 -### Splitting                                                 
+       22 -- **Equal split only**, in **PKR, whole rupees** (no paisa).  
+       23 -- The payer **counts as one of the people** and is **automatic
+          -ally marked as paid**.                                        
+       24 -- **Rounding rule:** friends' shares **round up**, and the pay
+          -er's own share takes the remainder, so the shares always add u
+          -p exactly to the total.                                       
+       25 -  - Example: 1000 PKR split between 3 people → friends pay **3
+          -34** each, payer's share is **332**.                          
+       26 -- **Too-small guard:** if `(N − 1) × ceil(total / N) > total`,
+          - show `Total is too small to split between N people in whole r
+          -upees.` and show no split.                                    
+       27 -  - Example: 11 PKR between 10 people would give friends 2 eac
+          -h (18 in total), which is more than the bill.                 
+       21 +- **Equal split in PKR, whole rupees.** The payer counts as on
+          +e of the people.                                              
+       22 +- **Friends' shares round up and the payer takes the remainder
+          +**, so friends all send one number and the shares always add u
+          +p to the total (1000 split 3 ways is 334, 334 and 332).       
+       23 +- **Money is stored as integers, never floats.**              
+       24 +- **Paid is a simple tick.** Once anyone is ticked, changing t
+          +he total or the people needs a confirmation and clears the tic
+          +ks.                                                           
+       25 +- **One bill, saved in the browser** (localStorage), on the sa
+          +me device only. There's no backend and no accounts.           
+       26 +- **The message is copied or opened in WhatsApp** (`wa.me`). I
+          +t shows one amount and lists no names.                        
+       27  
+       29 -### Money handling                                            
+       30 -- Money is **integer rupees end to end**: parsed to an integer
+          - at the input, stored as an integer in state and localStorage.
+          - **Never floats.**                                            
+       31 -- Rounding avoids float division: `q = Math.trunc(total / n)`,
+          - `r = total − q·n`, `share = r > 0 ? q + 1 : q`. Every value i
+          -s checked with `Number.isInteger`.                            
+       32 -- Display uses `Intl.NumberFormat` thousands separators, for e
+          -xample `1,000 PKR`. This is display only.                     
+       33 -- If paisa is ever added, store **integer paisa**, still never
+          - floats.                                                      
+       34 -                                                              
+       35 -### Total input rules                                         
+       36 -Use `<input type="text" inputmode="numeric">`, **not** `type="
+          -number"`, which accepts `1e5` and behaves differently across b
+          -rowsers.                                                      
+       37 -                                                              
+       38 -| Input | Behaviour |                                         
+       39 -|---|---|                                                     
+       40 -| Empty | No split; hint `Enter the bill total` (not a red err
+          -or) |                                                         
+       41 -| Spaces around the number | Trimmed silently |               
+       42 -| Commas, e.g. `1,500` | Accepted, commas stripped |          
+       43 -| `0` or negative | `Total must be more than 0 PKR` |         
+       44 -| Decimals, e.g. `1500.50` | Rejected: `Enter whole rupees (no
+          - paisa)` (never silently rounded) |                           
+       45 -| Letters or symbols, e.g. `12abc`, `1e5` | `Enter a number in
+          - whole rupees` |                                              
+       46 -| More than 10,000,000 | `Total can't be more than 10,000,000 
+          -PKR` |                                                        
+       47 -                                                              
+       48 -### People rules                                              
+       49 -| Rule | Behaviour |                                          
+       50 -|---|---|                                                     
+       51 -| Payer name | Separate "Your name" field, required: `Enter yo
+          -ur name` |                                                    
+       52 -| Minimum | 2 people in total (payer plus at least 1 friend) |
+       53 -| Maximum | 50 people in total: `A bill can have at most 50 pe
+          -ople.` |                                                      
+       54 -| Name length | 1–30 characters after trimming: `Names can be 
+          -up to 30 characters.` |                                       
+       55 -| Empty or whitespace-only name | Rejected |                  
+       56 -| Duplicates | **Case-insensitive, trimmed** ("ali", "Ali ", "
+          -ALI" are all the same). The payer's name counts too: `Ali is a
+          -lready in the list` |                                         
+       57 -| Characters | Anything allowed (Urdu, emoji). React escapes t
+          -he output. |                                                  
+       58 -| Adding | Names entered one at a time (Enter to add); each pe
+          -rson has a remove button |                                    
+       59 -                                                              
+       60 -### Payment details                                           
+       61 -- One **optional free-text box**, at most **200 characters**, 
+          -for example `Meezan · Waseek Ahmed · 0123456789`.             
+       62 -- **No format validation** (IBAN, account numbers and wallet n
+          -umbers vary too much, and wrongly rejecting a real number is w
+          -orse than not checking).                                      
+       63 -- If it's empty, the message leaves out the payment line.     
+       64 -- Saved with the bill.                                        
+       65 -                                                              
+       66 -### Tracking who paid                                         
+       67 -- Each friend has a **paid tick**, which can be unticked.     
+       68 -- The payer's row shows **"paid (you)"** and can't be toggled.
+       69 -- Summary: **`X of N paid · Y PKR still to collect`**. When ev
+          -eryone has paid: **`Everyone has paid ✓`**.                   
+       70 -- No partial payments and no screenshot uploads. The tick *is*
+          - the record.                                                  
+       71 -                                                              
+       72 -### Editing after people have paid                            
+       73 -- **Any change that alters the share amounts** (total, adding 
+          -or removing a person) shows an inline warning first, for examp
+          -le `Changing the total or the people will clear 3 payment tick
+          -s. Continue?`                                                 
+       74 -  - Confirm: ticks are cleared and the shares recalculate.    
+       75 -  - Cancel: nothing changes.                                  
+       76 -- **Changes that don't alter the shares** (renaming a person, 
+          -editing the payment details) **keep the ticks**.              
+       77 -- With no ticks set, edits apply without a warning.           
+       78 -                                                              
+       79 -### Saving                                                    
+       80 -- **One active bill**, saved in **localStorage**, so it surviv
+          -es refreshes and browser restarts **on the same device and bro
+          -wser only**.                                                  
+       81 -- **New bill** button with an **inline confirm** (`Are you sur
+          -e? Yes / Cancel`). Never a browser `confirm()` popup.         
+       82 -                                                              
+       83 -### WhatsApp message                                          
+       84 -- **Always shown on screen** as a selectable preview. The butt
+          -ons are only conveniences.                                    
+       85 -- **Copy message**: the button shows `Copied ✓`. If the clipbo
+          -ard is blocked: `Couldn't copy, select the text below`.       
+       86 -- **Open in WhatsApp**: a link to `https://wa.me/?text=<URL-en
+          -coded message>`.                                              
+       87 -- Format (no names listed, since everyone except the payer owe
+          -s the same amount):                                           
+       88 -  ```                                                         
+       89 -  Bill split: 1,000 PKR between 3 people                      
+       90 -  Please send 334 PKR each to:                                
+       91 -  Meezan · Waseek Ahmed · 0123456789                          
+       92 -  Send a screenshot here once done 🙏                         
+       93 -  ```                                                         
+       94 -- When the input isn't valid yet, the message section says wha
+          -t's missing, for example `Add a total and at least one friend 
+          -to create the message`.                                       
+       95 -                                                              
+       96 -### UI states (required behaviour; visual design is deferred) 
+       97 -- While the input is invalid: the share column shows `—`, the 
+          -paid ticks are disabled, and the message shows what's missing.
+       98 -- Accessibility basics: every input has a label, buttons and c
+          -heckboxes are real `<button>` and `<input type="checkbox">` el
+          -ements, errors are linked to their field via `aria-describedby
+          -`, and tap targets are at least 44px.                         
+       99 -- **Visual design and layout are deferred to session 02.** Bui
+          -ld an unstyled, working version first.                        
+      100 -                                                              
+      101 -### Out of scope (decided)                                    
+      102 -- Reminder messages for people who haven't paid (dropped, and 
+          -not listed as a story)                                        
+      103 -- Screenshot uploads, partial payments, several bills at once,
+          - other currencies, custom amounts per person (listed below as 
+          -Not implemented stories)                                      
+      104 -- Any backend, accounts or sync between devices               
+      105 -                                                              
+      106 ----                                                           
+      107 -                                                              
+      108 -## Product documents (to be written in `docs/`)               
+      109 -                                                              
+      110 -### App roles: `docs/app-roles.md`                            
+      111 -> **Bill Payer.** A Bill Payer is the friend who picked up the
+          - tab, whether it's dinner, fuel on a road trip or a group food
+          - order, and now has to get everyone's share back. Everyone pay
+          -s them back by bank transfer or Easypaisa/JazzCash, and it all
+          - happens in a WhatsApp group. They can put in what the bill ca
+          -me to, who was there and where to send the money, then see how
+          - much each person owes and tick people off as they pay. They m
+          -ust never end up with shares that don't add back up to the bil
+          -l, and must never lose track of who's paid without saying so f
+          -irst.                                                         
+      112 -                                                              
+      113 -> **Group Member.** A Group Member is one of the friends who w
+          -as there and owes the Bill Payer their share. They're in the W
+          -hatsApp group, and that's all they want to deal with. They jus
+          -t want to know how much to send and where to send it. They can
+          - see that in a message posted in the group. They never need to
+          - touch the app. They must never have to download anything, sig
+          -n up for anything or click a link just to pay back a friend.  
+      114 -                                                              
+      115 -### Jobs to be done: `docs/jobs-to-be-done.md`                
+      116 -> **J-1 (Bill Payer).** When I've paid for the whole group, I 
+          -want to work out what each person owes quickly and fairly, so 
+          -I can ask for the money straight away without doing maths at t
+          -he table.                                                     
+      117 -                                                              
+      118 -> **J-2 (Bill Payer).** When friends are sending money back ov
+          -er a few hours or days, I want to keep track of who has paid a
+          -nd who hasn't, so I can tell when I've got everything back and
+          - who I still need to chase.                                   
+      119 -                                                              
+      120 -> **J-3 (Group Member).** When I owe a friend for something we
+          - shared, I want to know exactly how much to send and where, so
+          - I can pay them back in a minute from my banking app and get o
+          -n with my day.                                                
+      121 -                                                              
+      122 -### User stories: `docs/user-stories.md`                      
+      123 -Write the full acceptance criteria as `Given … when … then …`,
+          - using the rules above. Cover the normal case, invalid input, 
+          -boundary values (2 and 50 people, a total of 1 and 10,000,000,
+          - 30 and 31 character names), very large and very small numbers
+          -, and what happens when the user carries on after a result or 
+          -an error.                                                     
+      124 -                                                              
+      125 -| ID | Job | Story | Status |                                 
+      126 -|---|---|---|---|                                             
+      127 -| S-1 | J-1 | As a Bill Payer, I want to enter the bill total 
+          -and see an equal share per person in whole rupees, so that I k
+          -now what to ask for without doing the maths. *(round-up rule, 
+          -too-small guard, total validation)* | Planned: Implemented |  
+      128 -| S-2 | J-1 | As a Bill Payer, I want to add and remove people
+          - by name, so that the split matches who was actually there. *(
+          -2–50 people, name rules, duplicates)* | Planned: Implemented |
+      129 -| S-3 | J-1 | As a Bill Payer, I want a ready-made message wit
+          -h the share and my payment details that I can copy or open in 
+          -WhatsApp, so that I can ask the group in one go. | Planned: Im
+          -plemented |                                                   
+      130 -| S-4 | J-3 | As a Group Member, I want the message to give me
+          - one amount and where to send it, so that I can pay without as
+          -king questions. *(message content, no payment line when detail
+          -s are empty)* | Planned: Implemented |                        
+      131 -| S-5 | J-2 | As a Bill Payer, I want to tick people off as th
+          -ey pay and see how many have paid and how much is still owed, 
+          -so that I know when I've got everything back. | Planned: Imple
+          -mented |                                                      
+      132 -| S-6 | J-2 | As a Bill Payer, I want my bill and ticks to sti
+          -ll be there when I come back later, so that I can keep trackin
+          -g over several days. | Planned: Implemented |                 
+      133 -| S-7 | J-2 | As a Bill Payer, I want to be warned that changi
+          -ng the total or the people will clear the ticks, so that I don
+          -'t lose track of payments by accident. | Planned: Implemented 
+          -|                                                             
+      134 -| S-8 | J-2 | As a Bill Payer, I want to start a new bill afte
+          -r confirming, so that the old one doesn't get mixed up with th
+          -e next. | Planned: Implemented |                              
+      135 -| S-9 | J-1 | Set a custom amount for one person (e.g. "Ali on
+          -ly had tea"). The rest split the remainder. | Not implemented 
+          -|                                                             
+      136 -| S-10 | J-1 | Paste a list of names copied from WhatsApp grou
+          -p info | Not implemented |                                    
+      137 -| S-11 | J-2 | Record partial payments ("sent 200 of 334") | N
+          -ot implemented |                                              
+      138 -| S-12 | J-2 | Keep several bills at once | Not implemented | 
+      139 -| S-13 | J-2 | Attach a screenshot as proof against a person |
+          - Not implemented |                                            
+      140 -                                                              
+      141 -> Only mark a story **Implemented** once every one of its acce
+          -ptance criteria has been checked by hand in the running app.  
+      142 -                                                              
+      143 ----                                                           
+      144 -                                                              
+      145 -## Tech stack                                                 
+      146 -                                                              
+      147 -- **Vite + React + TypeScript**, styled with **plain CSS**, no
+          - CSS framework                                                
+      148 -- **Vitest** for tests (plus optionally one React Testing Libr
+          -ary test for the tick-reset-on-edit flow)                     
+      149 -- **No state library, no router.** `useState` plus a small `us
+          -eLocalStorage` hook.                                          
+      150 -- **The split maths lives in a pure `src/split.ts`** with no R
+          -eact imports, so it can be tested on its own.                 
+      151 -- Node version pinned via `.nvmrc` and `package.json` `engines
+          -`.                                                            
+      152 -                                                              
+      153 -### Planned layout                                            
+      154 -```                                                           
+      155 -waseek-ahmed-calculator/                                      
+      156 -  README.md                                                   
+      157 -  package.json, vite.config.ts, tsconfig.json, index.html, .nv
+          -mrc                                                           
+      158 -  src/                                                        
+      159 -    split.ts          # pure money maths + validation         
+      160 -    split.test.ts     # includes a property test: shares alway
+          -s sum to the total                                            
+      161 -    App.tsx …                                                 
+      162 -  docs/                                                       
+      163 -    app-roles.md                                              
+      164 -    jobs-to-be-done.md                                        
+      165 -    user-stories.md                                           
+      166 -  transcripts/                                                
+      167 -    session-01.md     # planning (this session), exported via 
+          -/export                                                       
+      168 -    session-02.md     # build + UI design                     
+      169 -```                                                           
+      170 -                                                              
+      171 -`.gitignore`: `node_modules/`, `dist/`, `*.local.md` (keeps `B
+          -RIEF.local.md`, the assignment brief, out of the repo).       
+      172 -                                                              
+      173 ----                                                           
+      174 -                                                              
+      175 -## Build order                                                
+      176 -                                                              
+      177 -| # | Stage | Status |                                        
+      178 -|---|---|---|                                                 
+      179 -| 1 | Scaffold Vite + React + TS + Vitest, `.nvmrc`, `.gitigno
+          -re` | Not started |                                           
+      180 -| 2 | `split.ts` + `split.test.ts`: round-up rule, too-small g
+          -uard, total and name validation, sum-equals-total property tes
+          -t | Not started |                                             
+      181 -| 3 | Unstyled working UI covering S-1 to S-8 | Not started | 
+      182 -| 4 | Visual design (user-led, session 02) | Not started |    
+      183 -| 5 | `docs/` (roles, jobs, stories with full acceptance crite
+          -ria) | Not started |                                          
+      184 -| 6 | Hand-check every acceptance criterion, then set the stor
+          -y statuses | Not started |                                    
+      185 -| 7 | Finalise this README, export transcripts, push a public 
+          -GitHub repo, optional Vercel deploy | Not started |           
+      186 -                                                              
+      187 ----                                                           
+      188 -                                                              
+       28  ## Running the app
+       29  
+      191 -*(Planned. Confirm these once the scaffold exists.)*          
+       30 +*(Planned. Confirm once the project is set up.)*              
+       31  
+       32  **Prerequisites:** Node.js 20+
+       33  
+       34  ```bash
+       35  npm install
+       36  npm run dev      # open the printed localhost URL
+      198 -npm test         # run the unit tests                         
+       37 +npm test         # unit tests                                 
+       38  ```
+       39  
+       40 +## Build order                                                
+       41 +                                                              
+       42 +| # | Stage | Status |                                        
+       43 +|---|---|---|                                                 
+       44 +| 1 | Set up Vite + React + TS + Vitest, `.nvmrc`, `.gitignore
+          +` | Not started |                                             
+       45 +| 2 | `src/split.ts` + tests (rounding, too-small guard, valid
+          +ation, shares-add-up property test) | Not started |           
+       46 +| 3 | Plain working UI for S-1 to S-8 | Not started |         
+       47 +| 4 | Visual design (user-led) | Not started |                
+       48 +| 5 | Hand-check every acceptance criterion, then update the s
+          +tory statuses | Not started |                                 
+       49 +| 6 | Final README, export transcripts, public GitHub repo, op
+          +tional Vercel deploy | Not started |                          
+       50 +                                                              
+       51  ## AI tool and model
+       52  
+      203 -- Claude Code, model Claude Opus 5.5 (`claude-opus-5-5`). Sess
+          -ion 01: planning interview.                                   
+       53 +- Claude Code, model Claude Opus 5.5 (`claude-opus-5-5`)      
+       54 +- Session 01: planning interview and docs (`transcripts/sessio
+          +n-01.md`)                                                     
+       55  
+       56  ## Code changed by hand
+       57  
+      207 -- None yet. **List every hand edit here**, as the assignment r
+          -equires.                                                      
+       58 +- None yet.                                                   
+       59  
+       60  ## Assumptions
+       61  
+      211 -- Currency is PKR, in whole rupees only. The audience is Pakis
+          -tani friend groups paying each other back by bank or mobile wa
+          -llet.                                                         
+      212 -- Bills are split equally. Custom amounts per person are out o
+          -f scope for now.                                              
+      213 -- Data lives only in the payer's browser on one device. There 
+          -is no sync and no backend.                                    
+      214 -- WhatsApp is the group's chat app. The message is plain text,
+          - so it works in any chat app via Copy.                        
+       62 +- Currency is PKR, whole rupees only. The users are Pakistani 
+          +friend groups paying each other back by bank or mobile wallet.
+       63 +- Bills are split equally. Custom amounts per person come late
+          +r (S-9).                                                      
+       64 +- Data lives only in the payer's browser on one device.       
+       65 +- The message is plain text, so Copy works with any chat app, 
+          +not only WhatsApp.                                            
+       66  - The 10,000,000 PKR cap and the 50-person limit are well beyo
+           nd any real group bill.
+       67 +- Friends can't be renamed. To fix a typo, remove the person a
+          +nd add them again (only the payer's own name can be edited).  
+
+⏺ I've written all four files, and the README is now short. It covers what the
+  app is, links to the three docs, the key decisions in six bullets, the run
+  commands, the build order, the AI tool, hand edits and assumptions.
+
+  - CLAUDE.md gives the next session's agent the rules: build to the acceptance
+    criteria exactly, money as integers, keep split.ts free of React, don't
+    style the UI yourself, and keep stories marked Not implemented until they're
+    checked by hand.
+  - docs/app-roles.md has the two roles in the casual wording, plus a short note
+    on how their needs differ, which the brief asks for.
+  - docs/jobs-to-be-done.md has J-1 to J-3.
+  - docs/user-stories.md is the full spec. S-1 to S-8 each have Given/When/Then
+    acceptance criteria with the exact error messages, covering normal input,
+    bad input, limits and what happens after an error. S-9 to S-13 are short.
+
+  All stories are marked Not implemented for now, since nothing is built yet.
+  S-1 to S-8 are tagged "(planned v1)".
+
+  Five rules I settled while writing the acceptance criteria. Please confirm or 
+  overrule:
+
+  1. Locking edits once someone is ticked (S-7). Showing a warning on every
+     keystroke in the total field would be unusable. So once any friend is
+     ticked, the total and the people list are locked behind a Change total or 
+     people button that asks for confirmation. The outcome is the same as what
+     we agreed, and it's easier to test.
+  2. Payer's name in the message (S-4). The message says "Please send 334 PKR
+     each to Waseek:", so friends know who to pay even when no payment details
+     are entered.
+  3. Friends can't be renamed. Only your own name is editable. To fix a typo,
+     remove the person and add them again. This is listed under Assumptions.
+  4. Only a valid total is saved (S-6). Because money is stored only as an
+     integer, an invalid total like abc comes back as an empty field after a
+     refresh.
+  5. Two new messages: Enter a name for an empty name, and This bill can't be 
+     saved in this browser when browser storage is blocked, so the app keeps
+     working instead of crashing.
+
+✻ Baked for 2m 1s · done 4:03 PM
+
+※ recap: You're planning a WhatsApp bill-split tracker for the person who paid, and the README, CLAUDE.md and three product docs are written. Next, confirm or overrule the five rules I settled in the acceptance criteria, then we start setting up the project. (disable recaps in /config)
+
+❯ commit this and give me handover command for next agentt as well              
+
+⏺ Bash(printf '*.local.md\nnode_modules/\ndist/\n' > .gitignore && git add
+      .gitignore README.md CLAUDE.md docs && git status --short && git commit -q
+      -m "$(cat <<'EOF'…)
+  ⎿  A  .gitignore
+     A  CLAUDE.md
+     A  README.md
+     … +5 lines (ctrl+o to expand)
+  ⎿  (file diff unavailable for this command)
+
+⏺ I committed the plan as 2e4bc95 on main. Since the repo had no commits yet,
+  this is the first one and I didn't make a separate branch. BRIEF.local.md was
+  left out on purpose, and I added node_modules/ and dist/ to .gitignore before
+  committing.
+
+  Before you close this session, run /export and save it as
+  transcripts/session-01.md. The brief needs the transcript exactly as exported.
+
+  Handover prompt for the next agent (paste it as the first message of the new
+  session):
+
+  Read CLAUDE.md, README.md and all of docs/ before doing anything. 
+  docs/user-stories.md is the spec: build to its acceptance criteria exactly, 
+  including the exact message strings.
+
+  We're starting at build stage 1 in the README. Work one stage at a time and 
+  stop after each so I can review:
+  1. Set up Vite + React + TypeScript + Vitest at the repo root, with source in 
+  src/, plus .nvmrc (Node 20) and package.json engines. Confirm npm run dev and 
+  npm test work.
+  2. Write src/split.ts (pure, no React) and src/split.test.ts: the round-up 
+  rule, the too-small guard, total and name validation, and a property test that
+  shares always add up to the total. Run the tests and show me the output.
+  3. Build a plain, unstyled UI covering S-1 to S-8. Don't add any visual 
+  design; I'll design it myself afterwards.
+
+  After each stage, update the build-order table in the README. Don't mark any 
+  story Implemented; I'll do that after checking it by hand. Ask before adding 
+  any dependency not listed in CLAUDE.md. If something in the spec is unclear or
+  seems wrong, ask me instead of guessing.
+
+  The new agent loads CLAUDE.md automatically, but asking it to read the docs
+  first makes sure it starts from the spec.
+
+✻ Crunched for 19s · done 4:22 PM
